@@ -28,10 +28,10 @@ struct nd{
   int tot;
   int blacks, whites;
   int tot_x, tot_y;//to calculate the middle pixel for the cell
-  pair<int,int> state;//-1,-1 indicates univisited
+  pair<int,int> parent;//-1,-1 indicates univisited
   int steps;//steps in bfs
   nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0){
-    state.first = state.second = -1;
+    parent.first = parent.second = -1;
     steps = 0;
   }
 };
@@ -105,8 +105,8 @@ class PathPlannerGrid{
     void findshortest(AprilInterfaceAndVideoCapture &testbed){
       queue<pair<int,int> > q;
       q.push(make_pair(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].state.first = rcells;//just to define parent of 1st node
-      world_grid[start_grid_x][start_grid_y].state.second = ccells;//just to define parent of 1st node
+      world_grid[start_grid_x][start_grid_y].parent.first = rcells;//just to define parent of 1st node
+      world_grid[start_grid_x][start_grid_y].parent.second = ccells;//just to define parent of 1st node
       vector<pair<int> > aj = {{-1,0},{0,1},{1,0},{0,-1}};
       int ngr,ngc;
       pair<int,int> t;
@@ -116,10 +116,10 @@ class PathPlannerGrid{
           break;
         for(int i = 0;i<4;i++){
           ngr = t.first+aj[i].first, ngc = t.second+aj[i].second;
-          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].state.first>=0 || !isEmpty(ngr,ngc))
+          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].parent.first>=0 || !isEmpty(ngr,ngc))
             continue;
-          world_grid[ngr][ngc].state.first = t.first;
-          world_grid[ngr][ngc].state.second = t.second;
+          world_grid[ngr][ngc].parent.first = t.first;
+          world_grid[ngr][ngc].parent.second = t.second;
           world_grid[ngr][ngc].steps = world_grid[t.first][t.second].steps + 1;
           q.push(make_pair(ngr,ngc));
         }
@@ -134,7 +134,7 @@ class PathPlannerGrid{
         ay = world_grid[t.first][t.second].tot_y/world_grid[t.first][t.second].tot;
         testbed.pixelToWorld(ax,ay,bx,by);
         addPoint(i,ax,ay,bx,by);
-        t = world_grid[t.first][t.second].state;
+        t = world_grid[t.first][t.second].parent;
       }
     }
     void drawPath(Mat &image){
