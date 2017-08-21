@@ -28,14 +28,20 @@ struct nd{
   int tot;
   int blacks, whites;
   int tot_x, tot_y;//to calculate the middle pixel for the cell
-  int state;//1 selected in shortest path, -1 not selected, 0 not even visited
-  nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0),state(0){}
+  pair<int,int> state;//-1,-1 indicates univisited
+  int steps;//steps in bfs
+  nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0){
+    state.first = state.second = -1;
+    steps = 0;
+  }
 };
 
+//the cell empty criteria is an adjustable parameter as well
 class PathPlannerGrid{
   public:
-    int goal_id;//id of april tag goal id
-    int robot_id;//id of robot whose path needs to be planned
+    //the ids below are the indexes in the detections vector, not the actual tag ids
+    int goal_id;
+    int robot_id;
     int cell_size_x;//cell size in pixels
     int cell_size_y;
     int threshold_value;
@@ -49,18 +55,19 @@ class PathPlannerGrid{
 
     PathPlannerGrid(int csx,int csy, int a,int b,int th):robot_id(a),goal_id(b),cell_size_x(csx),cell_size_y(csy),threshold_value(th){}
 
-    void addPoint(int px, int py, double x,double y){
-      if(total_points>=path_points.size()){
-        path_points.resize(100+path_points.size());//add hundred points in one go
-        pixel_path_points.resize(100+pixel_path_points.size());
-      }
-      path_points[total_points].x = x;
-      path_points[total_points].y = y;
-      pixel_path_points[total_points].first = px;
-      pixel_path_points[total_points].second = py;
+    void addPoint(int ind,int px, int py, double x,double y){
+      path_points[ind].x = x;
+      path_points[ind].y = y;
+      pixel_path_points[ind].first = px;
+      pixel_path_points[ind].second = py;
       total_points++;
     }
 
+    bool isEmpty(int r,int c){//criteria based on which to decide whether cell is empty
+      if(world_grid[r][c].blacks > world_grid[r][c].whites*0.2)//more than 20 percent
+        return false;
+      return true;
+    }
     bool pixelIsInsideTag(int x,int y,vector<pair<float,float> > &p){
       for(int i = 0;i<4;i++){
         int j = (i+1)%4;
@@ -96,6 +103,44 @@ class PathPlannerGrid{
     }
     //find shortest traversal,populate path_points
     void findshortest(AprilInterfaceAndVideoCapture &testbed){
+      queue<pair<int,int> > q;
+      q.push(make_pair(start_grid_x,start_grid_y));
+      world_grid[start_grid_x][start_grid_y].state.first = rcells;//just to define parent of 1st node
+      world_grid[start_grid_x][start_grid_y].state.second = ccells;//just to define parent of 1st node
+      vector<pair<int> > aj = {{-1,0},{0,1},{1,0},{0,-1}};
+      int ngr,ngc;
+      pair<int,int> t;
+      while(!q.empty()){
+        t = q.front();q.pop();
+        if(t.first == goal_grid_x && t.second == goal_grid_y)
+          break;
+        for(int i = 0;i<4;i++){
+          ngr = t.first+aj[i].first, ngc = t.second+aj[i].second;
+          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].state.first>=0 || !isEmpty(ngr,ngc))
+            continue;
+          world_grid[ngr][ngc].state.first = t.first;
+          world_grid[ngr][ngc].state.second = t.second;
+          world_grid[ngr][ngc].steps = world_grid[t.first][t.second].steps + 1;
+          q.push(make_pair(ngr,ngc));
+        }
+      }
+      total_points = 0;
+      int cnt = world_grid[t.first][t.second].steps+1;
+      pixel_path_points.resize(cnt);
+      path_points.resize(cnt);
+      for(int i = cnt-1;!(t.first == rcells && t.second == ccells);i--){
+        int ax,ay;double bx,by;
+        ax = world_grid[t.first][t.second].tot_x/world_grid[t.first][t.second].tot;
+        ay = world_grid[t.first][t.second].tot_y/world_grid[t.first][t.second].tot;
+        testbed.pixelToWorld(ax,ay,bx,by);
+        addPoint(i,ax,ay,bx,by);
+        t = world_grid[t.first][t.second].state;
+      }
+    }
+    void drawPath(Mat &image){
+      for(int i = 0;i<total_points-1;i++){
+        line(image,Point(pixel_path_points[i].first,pixel_path_points[i].second),Point(pixel_path_points[i+1].first,pixel_path_points[i+1].second),Scalar(0,0,255),2);
+      }
     }
 };
 
