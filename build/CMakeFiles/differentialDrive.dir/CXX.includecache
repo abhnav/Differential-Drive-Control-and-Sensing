@@ -67,13 +67,9 @@ cmath
 -
 typeinfo
 -
-iostream
--
 cstring
 -
-vector
--
-list
+bits/stdc++.h
 -
 sys/time.h
 -
