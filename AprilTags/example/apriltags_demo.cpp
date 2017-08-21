@@ -1,24 +1,25 @@
-#include <cmath>
-#include <typeinfo>
+/**
+ * @file april_tags.cpp
+ * @brief Example application for April tags library
+ * @author: Michael Kaess
+ *
+ * Opens the first available camera (typically a built in camera in a
+ * laptop) and continuously detects April tags in the incoming
+ * images. Detections are both visualized in the live image and shown
+ * in the text console. Optionally allows selecting of a specific
+ * camera in case multiple ones are present and specifying image
+ * resolution as long as supported by the camera. Also includes the
+ * option to send tag detections via a serial port, for example when
+ * running on a Raspberry Pi that is connected to an Arduino.
+ */
+
+using namespace std;
+
 #include <iostream>
 #include <cstring>
 #include <vector>
 #include <list>
 #include <sys/time.h>
-#ifndef PI
-const double PI = 3.14159265358979323846;
-#endif
-const double TWOPI = 2.0*PI;
-using namespace std;
-struct robot_pose{
-  double x,y,omega;
-  robot_pose():x(0),y(0),omega(0){}
-};
-struct pt{
-  double x,y;
-  pt(){}
-  pt(double a,double b):x(a),y(b){}
-};
 
 const string usage = "\n"
   "Usage:\n"
@@ -45,6 +46,8 @@ const string intro = "\n"
     "(C) 2012-2014 Massachusetts Institute of Technology\n"
     "Michael Kaess\n"
     "\n";
+
+
 #ifndef __APPLE__
 #define EXPOSURE_CONTROL // only works in Linux
 #endif
@@ -55,8 +58,11 @@ const string intro = "\n"
 #include <fcntl.h>
 #include <errno.h>
 #endif
+
 // OpenCV library for easy access to USB camera and drawing of images
+// on screen
 #include "opencv2/opencv.hpp"
+
 // April tags detector and various families that can be selected by command line option
 #include "AprilTags/TagDetector.h"
 #include "AprilTags/Tag16h5.h"
@@ -64,13 +70,20 @@ const string intro = "\n"
 #include "AprilTags/Tag25h9.h"
 #include "AprilTags/Tag36h9.h"
 #include "AprilTags/Tag36h11.h"
+
+
 // Needed for getopt / command line options processing
 #include <unistd.h>
 extern int optind;
 extern char *optarg;
-using namespace cv;
+
 // For Arduino: locally defined serial port access class
 #include "Serial.h"
+
+
+const char* windowName = "apriltags_demo";
+
+
 // utility function to provide current system time (used below in
 // determining frame rate at which images are being processed)
 double tic() {
@@ -78,7 +91,18 @@ double tic() {
   gettimeofday(&t, NULL);
   return ((double)t.tv_sec + ((double)t.tv_usec)/1000000.);
 }
-//Normalize angle to be within the interval [-pi,pi].
+
+
+#include <cmath>
+
+#ifndef PI
+const double PI = 3.14159265358979323846;
+#endif
+const double TWOPI = 2.0*PI;
+
+/**
+ * Normalize angle to be within the interval [-pi,pi].
+ */
 inline double standardRad(double t) {
   if (t >= 0.) {
     t = fmod(t+PI, TWOPI) - PI;
@@ -87,7 +111,10 @@ inline double standardRad(double t) {
   }
   return t;
 }
-//Convert rotation matrix to Euler angles
+
+/**
+ * Convert rotation matrix to Euler angles
+ */
 void wRo_to_euler(const Eigen::Matrix3d& wRo, double& yaw, double& pitch, double& roll) {
     yaw = standardRad(atan2(wRo(1,0), wRo(0,0)));
     double c = cos(yaw);
@@ -95,35 +122,13 @@ void wRo_to_euler(const Eigen::Matrix3d& wRo, double& yaw, double& pitch, double
     pitch = standardRad(atan2(-wRo(2,0), wRo(0,0)*c + wRo(1,0)*s));
     roll  = standardRad(atan2(wRo(0,2)*s - wRo(1,2)*c, -wRo(0,1)*s + wRo(1,1)*c));
 }
-//for determining opencv matrix type
-string type2str(int type) {
-  string r;
 
-  uchar depth = type & CV_MAT_DEPTH_MASK;
-  uchar chans = 1 + (type >> CV_CN_SHIFT);
 
-  switch ( depth ) {
-    case CV_8U:  r = "8U"; break;
-    case CV_8S:  r = "8S"; break;
-    case CV_16U: r = "16U"; break;
-    case CV_16S: r = "16S"; break;
-    case CV_32S: r = "32S"; break;
-    case CV_32F: r = "32F"; break;
-    case CV_64F: r = "64F"; break;
-    default:     r = "User"; break;
-  }
+class Demo {
 
-  r += "C";
-  r += (chans+'0');
-
-  return r;
-}
-
-//starts video capture and detects the april tags in the scene, also parses the command line options
-class AprilInterfaceAndVideoCapture{
-public:
   AprilTags::TagDetector* m_tagDetector;
   AprilTags::TagCodes m_tagCodes;
+
   bool m_draw; // draw image and April tag detections?
   bool m_arduino; // send tag detections to serial port?
   bool m_timing; // print timing information for each tag extraction call
@@ -137,6 +142,7 @@ public:
   double m_py;
 
   int m_deviceId; // camera id (in case of multiple cameras)
+
   list<string> m_imgNames;
 
   cv::VideoCapture m_cap;
@@ -147,13 +153,10 @@ public:
 
   Serial m_serial;
 
-  Eigen::Vector3d planeOrigin;
-  Eigen::Vector3d x_axis;
-  Eigen::Vector3d y_axis;
-  
-  vector<AprilTags::TagDetection> detections;
-  //remember to add a class var to specify video device number, currently being assumed at 0 in setupvideo
-  AprilInterfaceAndVideoCapture() :
+public:
+
+  // default constructor
+  Demo() :
     // default settings, most can be modified through command line options (see below)
     m_tagDetector(NULL),
     m_tagCodes(AprilTags::tagCodes36h11),
@@ -162,14 +165,11 @@ public:
     m_arduino(false),
     m_timing(false),
 
-    //below parameters are the most important
-    //use a camera calibration technique to find out the below parameters
-    //below parameters are found using opencv calibration example module in opencv installation 
     m_width(640),
     m_height(480),
-    m_tagSize(0.135),
-    m_fx(6.4205269897923586e+02),//focal length in pixels
-    m_fy(6.4205269897923586e+02),
+    m_tagSize(0.166),
+    m_fx(600),
+    m_fy(600),
     m_px(m_width/2),
     m_py(m_height/2),
 
@@ -177,7 +177,8 @@ public:
     m_gain(-1),
     m_brightness(-1),
 
-    m_deviceId(0){}
+    m_deviceId(0)
+  {}
 
   // changing the tag family
   void setTagCodes(string s) {
@@ -196,6 +197,7 @@ public:
       exit(1);
     }
   }
+
   // parse command line options to change default behavior
   void parseOptions(int argc, char* argv[]) {
     int c;
@@ -277,16 +279,28 @@ public:
     }
   }
 
-void setup(){
-  m_tagDetector = new AprilTags::TagDetector(m_tagCodes);
-}
+  void setup() {
+    m_tagDetector = new AprilTags::TagDetector(m_tagCodes);
 
-void setupVideo(){
+    // prepare window for drawing the camera images
+    if (m_draw) {
+      cv::namedWindow(windowName, 1);
+    }
+
+    // optional: prepare serial port for communication with Arduino
+    if (m_arduino) {
+      m_serial.open("/dev/ttyACM0");
+    }
+  }
+
+  void setupVideo() {
+
 #ifdef EXPOSURE_CONTROL
     // manually setting camera exposure settings; OpenCV/v4l1 doesn't
     // support exposure control; so here we manually use v4l2 before
     // opening the device via OpenCV; confirmed to work with Logitech
     // C270; try exposure=20, gain=100, brightness=150
+
     string video_str = "/dev/video0";
     video_str[10] = '0' + m_deviceId;
     int device = v4l2_open(video_str.c_str(), O_RDWR | O_NONBLOCK);
@@ -327,84 +341,109 @@ void setupVideo(){
          << m_cap.get(CV_CAP_PROP_FRAME_WIDTH) << "x"
          << m_cap.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
 
-}
-void pixelToWorld(double x,double y,double &xd,double &yd){
-    x = x-m_px;
-    y = y-m_py;
-    Eigen::Vector3d tp(x/m_fx,y/m_fy,1);
-    Eigen::Vector3d normal = x_axis.cross(y_axis);
-    double d = normal.dot(planeOrigin);
-    double tpd = normal.dot(tp);
-    double zdash = d/tpd;
-    tp = zdash*tp;
-    tp = tp-planeOrigin;
-    xd = tp.dot(x_axis);
-    yd = tp.dot(y_axis);
-}
-//find the normal vector to the plane formed by the endpoints of tag
-void findNormal(Eigen::Vector3d &trans, Eigen::Matrix3d &rot, Eigen::Vector3d &result){
-    Eigen::Vector3d origin(0,0,0),xcoord(1,0,0),ycoord(0,1,0);
-    origin = rot*origin+trans;
-    xcoord = rot*xcoord+trans;
-    ycoord = rot*ycoord+trans;
-    xcoord = xcoord-origin;
-    ycoord = ycoord-origin;
-    result = xcoord.cross(ycoord);
-}
-void extractPlane(int ind){
-    Eigen::Vector3d translation;
-    Eigen::Matrix3d rotation;
-    detections[ind].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,translation, rotation);
-    Eigen::Vector3d ori(0,0,0);
-    Eigen::Vector3d xone(1,0,0);
-    Eigen::Vector3d yone(0,1,0);
-    planeOrigin = (rotation*ori) + translation;
-    x_axis = (rotation*xone) + translation;
-    x_axis = x_axis - planeOrigin;
-    x_axis.normalize();//this step is important
-    y_axis = (rotation*yone) + translation;
-    y_axis = y_axis - planeOrigin;
-    y_axis.normalize();
   }
-//robot is assumed to be facing positive y direction of it's apriltag
-void findRobotPose(int ind, robot_pose &rob){
+
+  void print_detection(AprilTags::TagDetection& detection) const {
+    cout << "  Id: " << detection.id
+         << " (Hamming: " << detection.hammingDistance << ")";
+
+    // recovering the relative pose of a tag:
+
+    // NOTE: for this to be accurate, it is necessary to use the
+    // actual camera parameters here as well as the actual tag size
+    // (m_fx, m_fy, m_px, m_py, m_tagSize)
+
     Eigen::Vector3d translation;
     Eigen::Matrix3d rotation;
-    detections[ind].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,translation, rotation);
-    Eigen::Vector3d ori(0,0,0);
-    ori = (rotation*ori)+translation;//ori is now the robot centre
-    rob.x = ori.dot(x_axis);
-    rob.y = ori.dot(y_axis);
-    Eigen::Vector3d ycoord(0,1,0);
-    ycoord = (rotation*ycoord)+translation;
-    double tempx = ycoord.dot(x_axis), tempy = ycoord.dot(y_axis);
-    tempx = tempx-rob.x; tempy = tempy-rob.y;
-    rob.omega = atan2(tempy,tempx);
-}
+    detection.getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,
+                                             translation, rotation);
+
+    Eigen::Matrix3d F;
+    F <<
+      1, 0,  0,
+      0,  -1,  0,
+      0,  0,  1;
+    Eigen::Matrix3d fixed_rot = F*rotation;
+    double yaw, pitch, roll;
+    wRo_to_euler(fixed_rot, yaw, pitch, roll);
+
+    cout << "  distance=" << translation.norm()
+         << "m, x=" << translation(0)
+         << ", y=" << translation(1)
+         << ", z=" << translation(2)
+         << ", yaw=" << yaw
+         << ", pitch=" << pitch
+         << ", roll=" << roll
+         << endl;
+
+    // Also note that for SLAM/multi-view application it is better to
+    // use reprojection error of corner points, because the noise in
+    // this relative pose is very non-Gaussian; see iSAM source code
+    // for suitable factors.
+  }
+
   void processImage(cv::Mat& image, cv::Mat& image_gray) {
     // alternative way is to grab, then retrieve; allows for
     // multiple grab when processing below frame rate - v4l keeps a
     // number of frames buffered, which can lead to significant lag
     //      m_cap.grab();
     //      m_cap.retrieve(image);
+
     // detect April tags (requires a gray scale image)
     cv::cvtColor(image, image_gray, CV_BGR2GRAY);
     double t0;
     if (m_timing) {
       t0 = tic();
     }
-    detections = m_tagDetector->extractTags(image_gray);
+    vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(image_gray);
     if (m_timing) {
       double dt = tic()-t0;
       cout << "Extracting tags took " << dt << " seconds." << endl;
     }
+
+    // print out each detection
     cout << detections.size() << " tags detected:" << endl;
+    for (int i=0; i<detections.size(); i++) {
+      print_detection(detections[i]);
+    }
+
+    // show the current image including any detections
+    if (m_draw) {
+      for (int i=0; i<detections.size(); i++) {
+        // also highlight in the image
+        detections[i].draw(image);
+      }
+      imshow(windowName, image); // OpenCV call
+    }
+
+    // optionally send tag information to serial port (e.g. to Arduino)
+    if (m_arduino) {
+      if (detections.size() > 0) {
+        // only the first detected tag is sent out for now
+        Eigen::Vector3d translation;
+        Eigen::Matrix3d rotation;
+        detections[0].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,
+                                                     translation, rotation);
+        m_serial.print(detections[0].id);
+        m_serial.print(",");
+        m_serial.print(translation(0));
+        m_serial.print(",");
+        m_serial.print(translation(1));
+        m_serial.print(",");
+        m_serial.print(translation(2));
+        m_serial.print("\n");
+      } else {
+        // no tag detected: tag ID = -1
+        m_serial.print("-1,0.0,0.0,0.0\n");
+      }
+    }
   }
 
   // Load and process a single image
   void loadImages() {
     cv::Mat image;
     cv::Mat image_gray;
+
     for (list<string>::iterator it=m_imgNames.begin(); it!=m_imgNames.end(); it++) {
       image = cv::imread(*it); // load image with opencv
       processImage(image, image_gray);
@@ -412,119 +451,68 @@ void findRobotPose(int ind, robot_pose &rob){
     }
   }
 
-// check the image container to find if video is to be processed or image
+  // Video or image processing?
   bool isVideo() {
     return m_imgNames.empty();
   }
-}; 
-class PathPlannerUser{
-  public:
-    vector<pt> path_points;
-    vector<pair<int,int> > pixel_path_points;
-    int total_points;
-    AprilInterfaceAndVideoCapture *testbed;
-    PathPlannerUser(AprilInterfaceAndVideoCapture *tb):total_points(0),testbed(tb){}
-    void addPoint(int px, int py, double x,double y){
-      if(total_points>=path_points.size()){
-        path_points.resize(100+path_points.size());//add hundred points in one go
-        pixel_path_points.resize(100+pixel_path_points.size());
+
+  // The processing loop where images are retrieved, tags detected,
+  // and information about detections generated
+  void loop() {
+
+    cv::Mat image;
+    cv::Mat image_gray;
+
+    int frame = 0;
+    double last_t = tic();
+    while (true) {
+
+      // capture frame
+      m_cap >> image;
+
+      processImage(image, image_gray);
+
+      // print out the frame rate at which image frames are being processed
+      frame++;
+      if (frame % 10 == 0) {
+        double t = tic();
+        cout << "  " << 10./(t-last_t) << " fps" << endl;
+        last_t = t;
       }
-      path_points[total_points].x = x;
-      path_points[total_points].y = y;
-      pixel_path_points[total_points].first = px;
-      pixel_path_points[total_points].second = py;
-      total_points++;
+
+      // exit if any key is pressed
+      if (cv::waitKey(1) >= 0) break;
     }
-    void CallBackFunc(int event, int x, int y){
-      static int left_clicked = 0;
-      static int x_pixel_previous = -1;
-      static int y_pixel_previous = -1;
-      //ignore EVENT_RABUTTONDOWN, EVENT_MBUTTONDOWN 
-       if(event == EVENT_LBUTTONDOWN){
-          left_clicked = (left_clicked+1)%2;
-          if(left_clicked){
-            path_points.clear();
-            pixel_path_points.clear();
-            total_points = 0;
-          }
-          x_pixel_previous = x;
-          y_pixel_previous = y;
-       }
-       else if(event == EVENT_MOUSEMOVE && left_clicked){
-         double xd, yd;
-         testbed->pixelToWorld(x,y,xd,yd);
-         addPoint(x,y,xd,yd);
-         x_pixel_previous = x; 
-         y_pixel_previous = y;
-       }
-    }
-    void drawPath(Mat &image){
-      for(int i = 0;i<total_points-1;i++){
-        line(image,Point(pixel_path_points[i].first,pixel_path_points[i].second),Point(pixel_path_points[i+1].first,pixel_path_points[i+1].second),Scalar(0,0,255),2);
-      }
-    }
-  static void CallBackFunc(int event, int x, int y, int flags, void* userdata){
-    PathPlannerUser *ppu = reinterpret_cast<PathPlannerUser*>(userdata);
-    ppu->CallBackFunc(event,x,y);
   }
-};
+
+}; // Demo
+
+
+// here is were everything begins
 int main(int argc, char* argv[]) {
-  AprilInterfaceAndVideoCapture testbed;
-  testbed.parseOptions(argc, argv);
-  testbed.setup();
-  if (!testbed.isVideo()) {
-    cout << "Processing image: option is not supported" << endl;
-    //demo.loadImages();
-    return 0;
+  Demo demo;
+
+  // process command line options
+  demo.parseOptions(argc, argv);
+
+  demo.setup();
+
+  if (demo.isVideo()) {
+    cout << "Processing video" << endl;
+
+    // setup image source, window for drawing, serial port...
+    demo.setupVideo();
+
+    // the actual processing loop where tags are detected and visualized
+    demo.loop();
+
+  } else {
+    cout << "Processing image" << endl;
+
+    // process single image
+    demo.loadImages();
+
   }
-  cout << "Processing video" << endl;
-  testbed.setupVideo();
-  cv::Mat image;
-  cv::Mat image_gray;
-  vector<robot_pose> robots(10);
-  PathPlannerUser path_planner(&testbed);
-  int frame = 0;
-  double last_t = tic();
-  const char *windowName = "What do you see?";
-  cv::namedWindow(windowName,WINDOW_NORMAL);
-  setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
-  int robotCount;
-  while (true){
-    robotCount = 0;
-    testbed.m_cap >> image;
-    testbed.processImage(image, image_gray);//tags extracted and stored in class variable
-    int n = testbed.detections.size();
-    for(int i = 0;i<n;i++){
-      if(testbed.detections[i].id == 0)//plane extracted
-        testbed.extractPlane(i);
-      else{//it's a robot
-        if(robotCount>=10){
-          cout<<"too many robots found"<<endl;
-          break;
-        }
-        testbed.findRobotPose(i,robots[robotCount++]);
-        cout<<"omega is "<<robots[robotCount-1].omega*180/PI<<endl;
-      }
-    }
 
-
-
-
-    if(testbed.m_draw){
-      for(int i = 0;i<n;i++){
-        testbed.detections[i].draw(image);
-      }
-      path_planner.drawPath(image);
-      imshow(windowName,image);
-    }
-    // print out the frame rate at which image frames are being processed
-    frame++;
-    if (frame % 10 == 0) {
-      double t = tic();
-      cout << "  " << 10./(t-last_t) << " fps" << endl;
-      last_t = t;
-    }
-    if (cv::waitKey(1) >= 0) break;
-  }
   return 0;
 }
