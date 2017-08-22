@@ -123,6 +123,33 @@ differentialDrive/fast:
 	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/build
 .PHONY : differentialDrive/fast
 
+Serial.o: Serial.cpp.o
+
+.PHONY : Serial.o
+
+# target to build an object file
+Serial.cpp.o:
+	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.o
+.PHONY : Serial.cpp.o
+
+Serial.i: Serial.cpp.i
+
+.PHONY : Serial.i
+
+# target to preprocess a source file
+Serial.cpp.i:
+	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.i
+.PHONY : Serial.cpp.i
+
+Serial.s: Serial.cpp.s
+
+.PHONY : Serial.s
+
+# target to generate assembly for a file
+Serial.cpp.s:
+	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.s
+.PHONY : Serial.cpp.s
+
 differentialDrive.o: differentialDrive.cpp.o
 
 .PHONY : differentialDrive.o
@@ -159,6 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... differentialDrive"
+	@echo "... Serial.o"
+	@echo "... Serial.i"
+	@echo "... Serial.s"
 	@echo "... differentialDrive.o"
 	@echo "... differentialDrive.i"
 	@echo "... differentialDrive.s"

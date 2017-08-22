@@ -1,8 +1,10 @@
 #include <cmath>
+#include <Eigen/Geometry>
 #include <typeinfo>
 #include <cstring>
 #include <bits/stdc++.h>
 #include <sys/time.h>
+using namespace Eigen;
 #ifndef PI
 const double PI = 3.14159265358979323846;
 #endif
@@ -563,7 +565,6 @@ class PathPlannerGrid{
       for(int i = 0;i<c;i+=cell_size_x)
         for(int j = 0;j<r;j++)
           grayImage.at<uint8_t>(j,i) = 0;
-
       namedWindow("processed",WINDOW_NORMAL);
       imshow("processed",grayImage);
     }
@@ -592,10 +593,9 @@ class PathPlannerGrid{
       }
       if(!( t.first == goal_grid_x && t.second == goal_grid_y )){
         cout<<"no path to reach destination"<<endl;
-        total_points = 1;//dummy
+        total_points = -1;//dummy
         return;
       }
-      assert(t.first == goal_grid_x && t.second == goal_grid_y);
       total_points = 0;
       int cnt = world_grid[t.first][t.second].steps+1;
       pixel_path_points.resize(cnt);
@@ -617,13 +617,76 @@ class PathPlannerGrid{
 };
 
 
+class PurePursuitController{
+  public:
+    double look_ahead_distance;
+    double reach_radius;
+    double axle_length;
+    int linear_velocity;
+    int inplace_turn_velocity;
+    int max_velocity;
+    double eps = 1e-9;
+    double min_turn_radius;
+    void calculateMinimumTurnRadius(){//finds turn radius in axle length scale
+      min_turn_radius = (axle_length*(linear_velocity+max_velocity))/(2*(max_velocity-linear_velocity));
+    }
+    PurePursuitController(double a,double b,double c, int d,int e,int f):look_ahead_distance(a),reach_radius(b),axle_length(c),linear_velocity(d),inplace_turn_velocity(e),max_velocity(f){
+      calculateMinimumTurnRadius();
+    }
+    double distance(double x1,double y1,double x2,double y2){
+      return sqrt(pow(x1-x2,2) + pow(y1-y2,2));
+    }
+    pair<int,int> computeStimuli(robot_pose &rp,vector<pt> &path){
+      int n = path.size();
+      if(!n) return make_pair(0,0);
+      double min = 1e15;
+      int ind = -1;
+      vector<double> distances(n);
+      for(int i = 0;i<n;i++){
+        if((distances[i]=distance(rp.x,rp.y,path[i].x,path[i].y))<min){
+          min = distances[i];
+          ind = i;
+        }
+        if(i == n-1 && distances[i]<=reach_radius)
+          return make_pair(0,0);
+      }
+      int next_point = ind;
+      for(int i = ind;i<n;i++){
+        if(distances[i]<look_ahead_distance && distances[i]>distances[next_point])
+          next_point = i;
+      }
+      Vector2d vec_translate(path[next_point].x-rp.x, path[next_point].y-rp.y);
+      Rotation2D<double> rot(-(rp.omega-PI/2.0));
+      Vector2d robot_relative_coords = rot*vec_translate;
+      if(abs(robot_relative_coords(0))<eps)
+        return make_pair(linear_velocity,linear_velocity);
+      int flag_turn_left = 0;
+      if(robot_relative_coords(0)<0){//2 quadrants to consider now
+        flag_turn_left = 1;
+        robot_relative_coords(0) *= -1;
+      }
+      if(robot_relative_coords(1)<0){
+        if(flag_turn_left) return make_pair((-1)*inplace_turn_velocity,inplace_turn_velocity);
+        else return make_pair(inplace_turn_velocity,(-1)*inplace_turn_velocity);
+      }
+      double radius_of_curvature = pow(distances[next_point],2)/(2.0*robot_relative_coords(0));
+      if(radius_of_curvature<min_turn_radius){
+        if(flag_turn_left) return make_pair((-1)*inplace_turn_velocity,inplace_turn_velocity);
+        else return make_pair(inplace_turn_velocity,(-1)*inplace_turn_velocity);
+      }
+      int excess_turn = (2*axle_length*linear_velocity)/(2*radius_of_curvature-axle_length);
+      if(flag_turn_left) return make_pair(linear_velocity,linear_velocity+excess_turn);
+      else return make_pair(linear_velocity+excess_turn,linear_velocity);
+    }
+};
+
 int main(int argc, char* argv[]) {
   AprilInterfaceAndVideoCapture testbed;
   testbed.parseOptions(argc, argv);
   testbed.setup();
   if (!testbed.isVideo()) {
     cout << "Processing image: option is not supported" << endl;
-    //demo.loadImages();
+    testbed.loadImages();
     return 0;
   }
   cout << "Processing video" << endl;
@@ -633,13 +696,17 @@ int main(int argc, char* argv[]) {
   vector<robot_pose> robots(10);
   PathPlannerGrid path_planner(10,10,100);
   //PathPlannerUser path_planner(&testbed);
+  PurePursuitController controller(0.110,0.05,0.10,150,200,255);
+  Serial s_transmit;
+  s_transmit.open("/dev/ttyUSB0",9600);
+
   int frame = 0;
   double last_t = tic();
   const char *windowName = "What do you see?";
   cv::namedWindow(windowName,WINDOW_NORMAL);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
   int robotCount;
-  int robot_id = 1,robindex = -1,goal_id = 2,goalindex = -1,origin_id = 0, originindex = -1;
+  int robot_id = 1,robindex = -1,goal_id = 2,goalindex = -1,origin_id = 0, originindex = -1, robot_pose_index = -1;
   while (true){
     robotCount = 0;
     testbed.m_cap >> image;
@@ -658,26 +725,28 @@ int main(int argc, char* argv[]) {
           break;
         }
         testbed.findRobotPose(i,robots[robotCount++]);
-        if(testbed.detections[i].id == robot_id)
+        if(testbed.detections[i].id == robot_id){
+          robot_pose_index = robotCount-1;
           robindex = i;
+        }
       }
     }
     if(robindex>=0 && goalindex>=0 && originindex>=0){
-      //imwrite("../sandbox/properimage.jpg",image);
-      //break;
       path_planner.setRobotId(robindex);
       path_planner.setOriginId(originindex);
       path_planner.setGoalId(goalindex);
       if(path_planner.total_points == 0){
         path_planner.overlayGrid(testbed.detections,image_gray);
         path_planner.findshortest(testbed);
-        cout<<"points found are "<<path_planner.total_points<<endl;
       }
     }
-
-
-
-
+    pair<int,int> wheel_velocities = controller.computeStimuli(robots[robot_pose_index],path_planner.path_points);
+    if(testbed.m_arduino && (wheel_velocities.first!=0 || wheel_velocities.second!=0)){
+      s_transmit.print((uchar)robot_id);
+      s_transmit.print((uchar)wheel_velocities.first);
+      s_transmit.print((uchar)wheel_velocities.second);
+      cout<<"velocities sent "<<wheel_velocities.first<<" "<<wheel_velocities.second<<endl;
+    }
     if(testbed.m_draw){
       for(int i = 0;i<n;i++){
         testbed.detections[i].draw(image);
