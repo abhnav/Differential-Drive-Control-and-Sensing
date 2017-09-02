@@ -69,6 +69,8 @@ const string intro = "\n"
 extern int optind;
 extern char *optarg;
 using namespace cv;
+string temp_a = "temp shortest path";
+Mat temp_image;
 // For Arduino: locally defined serial port access class
 #include "Serial.h"
 // utility function to provide current system time (used below in
@@ -474,11 +476,15 @@ struct nd{
   int tot;
   int blacks, whites;
   int tot_x, tot_y;//to calculate the middle pixel for the cell
-  pair<int,int> parent;//-1,-1 indicates univisited in bfs, not used in global preference dfs, parent in local dfs
-  int steps;//steps in bfs, states in global preference dfs used in finding coverage, 0 = uncovered, 1 = 0th child, 2 = 1st child, 3 = 2nd child, 4 = 3rd child, 5 = all covered, visited in local dfs
+  pair<int,int> parent;//parent in bfs, not used in global preference dfs, parent in local dfs
+  int steps;//steps in bfs(also used to indicate visited nodes), states in global preference dfs used in finding coverage, 0 = uncovered, 1 = 0th child, 2 = 1st child, 3 = 2nd child, 4 = 3rd child, 5 = all covered, visited in local dfs
   nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0){
     parent.first = parent.second = -1;
     steps = 0;
+  }
+  void emptyCell(){
+    tot = blacks = whites = tot_x = tot_y = steps = 0;
+    parent.first = parent.second = -1;
   }
 };
 
@@ -500,8 +506,25 @@ class PathPlannerGrid{
     int rcells, ccells;
     vector<vector<nd> > world_grid;//grid size is assumed to be manueveurable by the robot
 
-    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0){}
+    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){}
+    PathPlannerGrid():total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){}
 
+    void gridInversion(const PathPlannerGrid &planner){//invert visitable and non visitable cells
+      rcells = planner.rcells;
+      ccells = planner.ccells;
+      world_grid.resize(rcells);
+      for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
+      for(int i = 0;i<rcells;i++)
+        for(int j = 0;j<ccells;j++)
+          if(planner.world_grid[i][j].steps > 0){
+            world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
+            world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
+            world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
+            world_grid[i][j].tot = planner.world_grid[i][j].tot;
+          }
+          else
+            world_grid[i][j].steps = 1;
+    }
     void addPoint(int ind,int px, int py, double x,double y){
       if(total_points+1>path_points.size()){
         path_points.resize(1+total_points);
@@ -534,8 +557,12 @@ class PathPlannerGrid{
     //check for obstacles but excludes the black pixels obtained from apriltags
     int setRobotCellCoordinates(vector<AprilTags::TagDetection> &detections){
       if(robot_id < 0){
-        cout<<"can't find the robot in tags detected"<<endl;
-        return -1;
+        if(start_grid_x == start_grid_y && start_grid_x == -1){
+          cout<<"can't find the robot in tags detected"<<endl;
+          return -1;
+        }
+        else
+          return 1;
       }
       start_grid_y = detections[robot_id].cxy.first/cell_size_x;
       start_grid_x = detections[robot_id].cxy.second/cell_size_y;
@@ -543,8 +570,12 @@ class PathPlannerGrid{
     }
     int setGoalCellCoordinates(vector<AprilTags::TagDetection> &detections){
       if(goal_id < 0){
-        cout<<"can't find goal in tags detected"<<endl;
-        return -1;
+        if(goal_grid_x == goal_grid_y && goal_grid_x == -1){
+          cout<<"can't find goal in tags detected"<<endl;
+          return -1;
+        }
+        else
+          return 1;
       }
       goal_grid_y = detections[goal_id].cxy.first/cell_size_x;
       goal_grid_x = detections[goal_id].cxy.second/cell_size_y;
@@ -557,7 +588,7 @@ class PathPlannerGrid{
         cout<<"can't draw the grid on the given image"<<endl;
         return;
       }
-      Vec3b col(255,255,255);
+      Vec3b col(0,0,0);
       int r = image.rows, c = image.cols;
       for(int i = 0;i<r;i += cell_size_y)
         for(int j = 0;j<c;j++)
@@ -570,23 +601,29 @@ class PathPlannerGrid{
           if(channels == 1)
             image.at<uint8_t>(j,i) = 0;
           else
-            image.at<Vec3b>(i,j) = col;
+            image.at<Vec3b>(j,i) = col;
       for(int i = 0;i<rcells;i++)
         for(int j = 0;j<ccells;j++){
           int ax,ay;
           if(!isEmpty(i,j)) continue;
           ax = world_grid[i][j].tot_x/world_grid[i][j].tot;
           ay = world_grid[i][j].tot_y/world_grid[i][j].tot;
-          circle(image, Point(ax,ay), 8, cv::Scalar(0,0,255,0), 2);
+          circle(image, Point(ax,ay), 8, cv::Scalar(0,0,0,0), 2);
         }
     }
-    void overlayGrid(vector<AprilTags::TagDetection> &detections,Mat &grayImage){
-      threshold(grayImage,grayImage,threshold_value,255,0);
-      int r = grayImage.rows, c = grayImage.cols;
+    void initializeGrid(int r,int c){//image rows and columns are provided
       rcells = ceil((float)r/cell_size_y);
       ccells = ceil((float)c/cell_size_x);
       world_grid.resize(rcells);
       for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
+      for(int i = 0;i<rcells;i++)
+        for(int j = 0;j<ccells;j++)
+          world_grid[i][j].emptyCell();
+    }
+    void overlayGrid(vector<AprilTags::TagDetection> &detections,Mat &grayImage){
+      threshold(grayImage,grayImage,threshold_value,255,0);
+      int r = grayImage.rows, c = grayImage.cols;
+      initializeGrid(r,c);
       for(int i = 0;i<r;i++){
         for(int j = 0;j<c;j++){
           int gr = i/cell_size_y, gc = j/cell_size_x;
@@ -605,15 +642,16 @@ class PathPlannerGrid{
       }
     }
     //find shortest traversal,populate path_points
-    void findshortest(AprilInterfaceAndVideoCapture &testbed,vector<AprilTags::TagDetection> &detections){
-      if(setRobotCellCoordinates(detections)<0)
+    void findshortest(AprilInterfaceAndVideoCapture &testbed){
+      if(setRobotCellCoordinates(testbed.detections)<0)
         return;
-      if(setGoalCellCoordinates(detections)<0)
+      if(setGoalCellCoordinates(testbed.detections)<0)
         return;
       queue<pair<int,int> > q;
       q.push(make_pair(start_grid_x,start_grid_y));
       world_grid[start_grid_x][start_grid_y].parent.first = rcells;//just to define parent of 1st node
       world_grid[start_grid_x][start_grid_y].parent.second = ccells;//just to define parent of 1st node
+      world_grid[start_grid_x][start_grid_y].steps = 1;
       vector<pair<int,int> > aj = {{-1,0},{0,1},{1,0},{0,-1}};
       int ngr,ngc;
       pair<int,int> t;
@@ -623,7 +661,7 @@ class PathPlannerGrid{
           break;
         for(int i = 0;i<4;i++){
           ngr = t.first+aj[i].first, ngc = t.second+aj[i].second;
-          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].parent.first>=0 || !isEmpty(ngr,ngc))
+          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].steps>0 || !isEmpty(ngr,ngc))
             continue;
           world_grid[ngr][ngc].parent.first = t.first;
           world_grid[ngr][ngc].parent.second = t.second;
@@ -637,7 +675,7 @@ class PathPlannerGrid{
         return;
       }
       total_points = 0;
-      int cnt = world_grid[t.first][t.second].steps+1;
+      int cnt = world_grid[t.first][t.second].steps;
       pixel_path_points.resize(cnt);
       path_points.resize(cnt);
       for(int i = cnt-1;!(t.first == rcells && t.second == ccells);i--){
@@ -656,7 +694,7 @@ class PathPlannerGrid{
       if(agl>135 || agl<-135) return pair<int,int> (start_grid_x,start_grid_y+1);
       if(agl<-45 && agl>-135) return pair<int,int> (start_grid_x-1,start_grid_y);
     }
-    void addGridCellToPath(int r,int c){
+    void addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed){
       int ax,ay;double bx,by;
       ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
       ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
@@ -664,7 +702,7 @@ class PathPlannerGrid{
       addPoint(total_points,ax,ay,bx,by);
     }
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
-      if(setRobotCellCoordinates(detections)<0)
+      if(setRobotCellCoordinates(testbed.detections)<0)
         return;
       vector<pair<int,int> > incumbent_cells(rcells*ccells);
       int ic_no = 0;
@@ -687,16 +725,16 @@ class PathPlannerGrid{
       aj[2][1][2].first = 0, aj[2][1][2].second = 1; 
       aj[2][1][3].first = -1, aj[2][1][3].second = 0; 
       //moving globally up
-      aj[2][1][0].first = -1, aj[2][1][0].second = 0; 
-      aj[2][1][1].first = 0, aj[2][1][1].second = 1; 
-      aj[2][1][2].first = 0, aj[2][1][2].second = -1; 
-      aj[2][1][3].first = 1, aj[2][1][3].second = 0; 
+      aj[0][1][0].first = -1, aj[0][1][0].second = 0; 
+      aj[0][1][1].first = 0, aj[0][1][1].second = 1; 
+      aj[0][1][2].first = 0, aj[0][1][2].second = -1; 
+      aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
 
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
       total_points = 0;
       world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
-      addGridCellToPath(start_grid_x,start_grid_y);
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
       int ngr,ngc;//neighbor row and column
 
       while(!sk.empty()){
@@ -704,7 +742,7 @@ class PathPlannerGrid{
         int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
         int ny = t.second-world_grid[t.first][t.second].parent.second+1;
         bool empty_neighbor_found = false;
-        for(int i = 0,i<4;i++){
+        for(int i = 0;i<4;i++){
           ngr = t.first+aj[nx][ny][i].first;
           ngc = t.second+aj[nx][ny][i].second;
           if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
@@ -713,15 +751,26 @@ class PathPlannerGrid{
           if(ic_no){
             incumbent_cells[ic_no] = t; 
             ic_no++;
-            for(int i = 1;i<ic_no;i++){
-              int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-              addGridCellToPath(cellrow,cellcol);
+            PathPlannerGrid temp_planner;
+            temp_planner.gridInversion(*this);
+            temp_planner.start_grid_x = incumbent_cells[0].first;
+            temp_planner.start_grid_y = incumbent_cells[0].second;
+            temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
+            temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
+            temp_planner.findshortest(testbed);
+            temp_planner.drawPath(temp_image);
+            for(int i = 0;i<temp_planner.path_points.size();i++){
+              addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
             }
+            //for(int i = 1;i<ic_no;i++){
+              //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
+              //addGridCellToPath(cellrow,cellcol,testbed);
+            //}
             ic_no = 0;//reset to zero
           }
           world_grid[ngr][ngc].steps = 1;
           world_grid[ngr][ngc].parent = t;
-          addGridCellToPath(ngr,ngc);
+          addGridCellToPath(ngr,ngc,testbed);
           sk.push(pair<int,int>(ngr,ngc));
           break;
         }
@@ -735,7 +784,7 @@ class PathPlannerGrid{
       }
     }
     void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed){
-      if(setRobotCellCoordinates(detections)<0)
+      if(setRobotCellCoordinates(testbed.detections)<0)
         return;
       vector<pair<int,int> > incumbent_cells(rcells*ccells);
       int ic_no = 0;//points in above vector
@@ -748,7 +797,7 @@ class PathPlannerGrid{
         pair<int,int> t = sk.top();
         int ng_no = world_grid[t.first][t.second].steps;
         if(ng_no == 1){
-          addGridCellToPath(t.first,t.second);
+          addGridCellToPath(t.first,t.second,testbed);
           int ngr = t.first+aj[0].first, ngc = t.second+aj[0].second;
           if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps){
             world_grid[t.first][t.second].steps = 2;
@@ -772,10 +821,21 @@ class PathPlannerGrid{
           if(ic_no){
             incumbent_cells[ic_no] = t;
             ic_no++;
-            for(int i = 1;i<ic_no;i++){
-              int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-              addGridCellToPath(cellrow,cellcol);
+            PathPlannerGrid temp_planner;
+            temp_planner.gridInversion(*this);
+            temp_planner.start_grid_x = incumbent_cells[0].first;
+            temp_planner.start_grid_y = incumbent_cells[0].second;
+            temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
+            temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
+            temp_planner.findshortest(testbed);
+            temp_planner.drawPath(temp_image);
+            for(int i = 0;i<temp_planner.path_points.size();i++){
+              addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
             }
+            //for(int i = 1;i<ic_no;i++){
+              //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
+              //addGridCellToPath(cellrow,cellcol,testbed);
+            //}
             ic_no = 0;//reset to zero
           }
           world_grid[ngr][ngc].steps = 1;
@@ -837,7 +897,7 @@ class PurePursuitController{
       return next_point;
     }
     int findNextPointByPathIndex(robot_pose &rp, vector<pt> &path){
-      static next_index = 0;
+      static int next_index = 0;
       if(next_index == path.size())
         return next_index;
       double dis = distance(rp.x,rp.y,path[next_index].x, path[next_index].y);
@@ -867,7 +927,8 @@ class PurePursuitController{
         if(flag_turn_left) return make_pair((-1)*inplace_turn_velocity,inplace_turn_velocity);
         else return make_pair(inplace_turn_velocity,(-1)*inplace_turn_velocity);
       }
-      double radius_of_curvature = pow(distances[next_point],2)/(2.0*robot_relative_coords(0));
+      double distance_to_next = distance(rp.x,rp.y,path[next_point].x,path[next_point].y);
+      double radius_of_curvature = pow(distance_to_next,2)/(2.0*robot_relative_coords(0));
       if(radius_of_curvature<min_turn_radius){
         if(flag_turn_left) return make_pair((-1)*inplace_turn_velocity,inplace_turn_velocity);
         else return make_pair(inplace_turn_velocity,(-1)*inplace_turn_velocity);
@@ -893,23 +954,32 @@ int main(int argc, char* argv[]) {
   double last_t = tic();
   const char *windowName = "What do you see?";
   cv::namedWindow(windowName,WINDOW_NORMAL);
+  namedWindow(temp_a, WINDOW_NORMAL);
   Serial s_transmit;
-  s_transmit.open("/dev/ttyUSB0",9600);
+  //s_transmit.open("/dev/ttyUSB0",9600);
   cv::Mat image;
   cv::Mat image_gray;
-  PathPlannerGrid path_planner(10,10,100);
+  PathPlannerGrid path_planner(60,60,100);
   //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
-  PurePursuitController controller(0.110,0.05,0.10,150,200,255,false);
+  PurePursuitController controller(40.0,2.0,14.5,80,80,128,false);
+
+  //make sure that lookahead always contain atleast the next path point
+  //if not then the next point to the closest would automatically become target
+  //PurePursuitController controller(20.0,2.0,14.5,70,70,128,true);
   int robot_id = 1,goal_id = 2,origin_id = 0;
   int robotCount;
   int max_robots = 10;
   vector<robot_pose> robots(max_robots);
-  vector<int> tag_id_index_map(max_robots,-1);//tag id should also not go beyond max_robots
-  vector<int> pose_id_index_map(max_robots,-1);
+  vector<int> tag_id_index_map(max_robots);//tag id should also not go beyond max_robots
+  vector<int> pose_id_index_map(max_robots);
   while (true){
+    for(int i = 0;i<max_robots;i++)
+      tag_id_index_map[i] = pose_id_index_map[i] = -1;
     robotCount = 0;
     testbed.m_cap >> image;
+    image.copyTo(temp_image);
+
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
     for(int i = 0;i<n;i++){
@@ -931,9 +1001,11 @@ int main(int argc, char* argv[]) {
       path_planner.goal_id = tag_id_index_map[goal_id];
       path_planner.origin_id = tag_id_index_map[origin_id];
       path_planner.overlayGrid(testbed.detections,image_gray);
-      path_planner.findshortest(testbed);
-      path_planner.findCoverageGlobalNeighborPreference(testbed);
-      path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+      //path_planner.findshortest(testbed);
+      //path_planner.findCoverageGlobalNeighborPreference(testbed);
+      if(pose_id_index_map[robot_id]>=0)
+        path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+      imshow(temp_a,temp_image);
     }
 
     pair<int,int> wheel_velocities = controller.computeStimuli(robots[pose_id_index_map[robot_id]],path_planner.path_points);
@@ -947,6 +1019,7 @@ int main(int argc, char* argv[]) {
       for(int i = 0;i<n;i++){
         testbed.detections[i].draw(image);
       }
+      path_planner.drawGrid(image);
       path_planner.drawPath(image);
       imshow(windowName,image);
     }
@@ -957,7 +1030,7 @@ int main(int argc, char* argv[]) {
       cout << "  " << 10./(t-last_t) << " fps" << endl;
       last_t = t;
     }
-    if (cv::waitKey(1) >= 0) break;
+    if (cv::waitKey(10) == 27) break;
   }
   return 0;
 }
