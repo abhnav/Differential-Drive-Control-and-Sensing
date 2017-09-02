@@ -476,15 +476,17 @@ struct nd{
   int tot;
   int blacks, whites;
   int tot_x, tot_y;//to calculate the middle pixel for the cell
-  pair<int,int> parent;//parent in bfs, not used in global preference dfs, parent in local dfs
+  pair<int,int> parent;//parent in bfs, not used in global preference dfs(but parent is still set nevertheless), parent in local dfs, parent in BSA
   int steps;//steps in bfs(also used to indicate visited nodes), states in global preference dfs used in finding coverage, 0 = uncovered, 1 = 0th child, 2 = 1st child, 3 = 2nd child, 4 = 3rd child, 5 = all covered, visited in local dfs
+  int wall_reference;//-1 no wall, 0 front wall, 1 right wall, 2 left wall, 3 back wall, used in BSA
+
   nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0){
-    parent.first = parent.second = -1;
+    wall_reference = parent.first = parent.second = -1;
     steps = 0;
   }
   void emptyCell(){
     tot = blacks = whites = tot_x = tot_y = steps = 0;
-    parent.first = parent.second = -1;
+    parent.first = parent.second = wall_reference = -1;
   }
 };
 
@@ -505,9 +507,37 @@ class PathPlannerGrid{
     int goal_grid_x, goal_grid_y;
     int rcells, ccells;
     vector<vector<nd> > world_grid;//grid size is assumed to be manueveurable by the robot
+      //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
+    pair<int,int> aj[3][3][4];
 
-    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){}
-    PathPlannerGrid():total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){}
+    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){
+      initializeLocalPreferenceMatrix();
+    }
+    PathPlannerGrid():total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){
+      initializeLocalPreferenceMatrix();
+    }
+    void initializeLocalPreferenceMatrix(){
+      //moving globally right
+      aj[1][2][0].first = 0, aj[1][2][0].second = 1; 
+      aj[1][2][1].first = 1, aj[1][2][1].second = 0; 
+      aj[1][2][2].first = -1, aj[1][2][2].second = 0; 
+      aj[1][2][3].first = 0, aj[1][2][3].second = -1; 
+      //moving globally left
+      aj[1][0][0].first = 0, aj[1][0][0].second = -1; 
+      aj[1][0][1].first = -1, aj[1][0][1].second = 0; 
+      aj[1][0][2].first = 1, aj[1][0][2].second = 0; 
+      aj[1][0][3].first = 0, aj[1][0][3].second = 1; 
+      //moving globally down
+      aj[2][1][0].first = 1, aj[2][1][0].second = 0; 
+      aj[2][1][1].first = 0, aj[2][1][1].second = -1; 
+      aj[2][1][2].first = 0, aj[2][1][2].second = 1; 
+      aj[2][1][3].first = -1, aj[2][1][3].second = 0; 
+      //moving globally up
+      aj[0][1][0].first = -1, aj[0][1][0].second = 0; 
+      aj[0][1][1].first = 0, aj[0][1][1].second = 1; 
+      aj[0][1][2].first = 0, aj[0][1][2].second = -1; 
+      aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
+    }
 
     void gridInversion(const PathPlannerGrid &planner){//invert visitable and non visitable cells
       rcells = planner.rcells;
@@ -701,35 +731,104 @@ class PathPlannerGrid{
       testbed.pixelToWorld(ax,ay,bx,by);
       addPoint(total_points,ax,ay,bx,by);
     }
+    bool isBlocked(int ngr, int ngc){
+      if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
+        return true;
+      return false;
+    }
+    int getWallReference(int r,int c,int pr, int pc){
+      if(pr < 0 || pc < 0)//for global preference coverage, as parent field remains unused
+        return -1;
+      int ngr[4],ngc[4];
+      int nx = r-pr+1, ny = c-pc+1;
+      for(int i = 0;i<4;i++)
+        ngr[i] = r+aj[nx][ny][i].first, ngc[i] = c+aj[nx][ny][i].second;
+      if(isBlocked(ngr[1],ngc[1]))//right wall due to higher priority
+        return 1;
+      if(isBlocked(ngr[0],ngc[0]))//front wall, turn right, left wall reference
+        return 2;
+      if(isBlocked(ngr[2],ngc[2]))//left wall
+        return 2;
+      return -1;//
+    }
+    void addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,vector<pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed){
+      if(ic_no){
+        incumbent_cells[ic_no] = t; 
+        ic_no++;
+        PathPlannerGrid temp_planner;
+        temp_planner.gridInversion(*this);
+        temp_planner.start_grid_x = incumbent_cells[0].first;
+        temp_planner.start_grid_y = incumbent_cells[0].second;
+        temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
+        temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
+        temp_planner.findshortest(testbed);
+        temp_planner.drawPath(temp_image);
+        for(int i = 0;i<temp_planner.path_points.size();i++){
+          addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
+        }
+        //for(int i = 1;i<ic_no;i++){
+          //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
+          //addGridCellToPath(cellrow,cellcol,testbed);
+        //}
+        ic_no = 0;//reset to zero
+      }
+      world_grid[ngr][ngc].steps = 1;
+      world_grid[ngr][ngc].parent = t;
+      world_grid[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_grid[t.first][t.second].parent.first, world_grid[t.first][t.second].parent.second);
+      addGridCellToPath(ngr,ngc,testbed);
+      sk.push(pair<int,int>(ngr,ngc));
+    }
+    void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
+      if(setRobotCellCoordinates(testbed.detections)<0)
+        return;
+      vector<pair<int,int> > incumbent_cells(rcells*ccells);
+      int ic_no = 0;
+      stack<pair<int,int> > sk;
+      sk.push(pair<int,int>(start_grid_x,start_grid_y));
+      total_points = 0;
+      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].steps = 1;//visited
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
+      int ngr,ngc,wall;//neighbor row and column
+
+      while(!sk.empty()){
+        pair<int,int> t = sk.top();
+        int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
+        int ny = t.second-world_grid[t.first][t.second].parent.second+1;
+        if((wall=world_grid[t.first][t.second].wall_reference)>=0){
+          ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
+          if(!isBlocked(ngr,ngc)){
+            addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+            world_grid[ngr][ngc].wall_reference = -1;//to prevent wall exchange to right wall when following left wall
+            continue;
+          }
+        }
+        bool empty_neighbor_found = false;
+        for(int i = 0;i<4;i++){
+          ngr = t.first+aj[nx][ny][i].first;
+          ngc = t.second+aj[nx][ny][i].second;
+          if(isBlocked(ngr,ngc))
+            continue;
+          empty_neighbor_found = true;
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+          break;
+        }
+        if(empty_neighbor_found) continue;
+        incumbent_cells[ic_no] = t;
+        ic_no++;
+        sk.pop();
+        if(sk.empty()) break;
+        pair<int,int> next_below = sk.top();
+        world_grid[next_below.first][next_below.second].parent = t;
+        world_grid[next_below.first][next_below.second].wall_reference = 1;//since turning 180 degrees
+      }
+    }
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
       if(setRobotCellCoordinates(testbed.detections)<0)
         return;
       vector<pair<int,int> > incumbent_cells(rcells*ccells);
       int ic_no = 0;
       stack<pair<int,int> > sk;
-      //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
-      pair<int,int> aj[3][3][4];
-      //moving globally right
-      aj[1][2][0].first = 0, aj[1][2][0].second = 1; 
-      aj[1][2][1].first = 1, aj[1][2][1].second = 0; 
-      aj[1][2][2].first = -1, aj[1][2][2].second = 0; 
-      aj[1][2][3].first = 0, aj[1][2][3].second = -1; 
-      //moving globally left
-      aj[1][0][0].first = 0, aj[1][0][0].second = -1; 
-      aj[1][0][1].first = -1, aj[1][0][1].second = 0; 
-      aj[1][0][2].first = 1, aj[1][0][2].second = 0; 
-      aj[1][0][3].first = 0, aj[1][0][3].second = 1; 
-      //moving globally down
-      aj[2][1][0].first = 1, aj[2][1][0].second = 0; 
-      aj[2][1][1].first = 0, aj[2][1][1].second = -1; 
-      aj[2][1][2].first = 0, aj[2][1][2].second = 1; 
-      aj[2][1][3].first = -1, aj[2][1][3].second = 0; 
-      //moving globally up
-      aj[0][1][0].first = -1, aj[0][1][0].second = 0; 
-      aj[0][1][1].first = 0, aj[0][1][1].second = 1; 
-      aj[0][1][2].first = 0, aj[0][1][2].second = -1; 
-      aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
-
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
       total_points = 0;
       world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
@@ -745,33 +844,10 @@ class PathPlannerGrid{
         for(int i = 0;i<4;i++){
           ngr = t.first+aj[nx][ny][i].first;
           ngc = t.second+aj[nx][ny][i].second;
-          if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
+          if(isBlocked(ngr,ngc))
             continue;
           empty_neighbor_found = true;
-          if(ic_no){
-            incumbent_cells[ic_no] = t; 
-            ic_no++;
-            PathPlannerGrid temp_planner;
-            temp_planner.gridInversion(*this);
-            temp_planner.start_grid_x = incumbent_cells[0].first;
-            temp_planner.start_grid_y = incumbent_cells[0].second;
-            temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
-            temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
-            temp_planner.findshortest(testbed);
-            temp_planner.drawPath(temp_image);
-            for(int i = 0;i<temp_planner.path_points.size();i++){
-              addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
-            }
-            //for(int i = 1;i<ic_no;i++){
-              //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-              //addGridCellToPath(cellrow,cellcol,testbed);
-            //}
-            ic_no = 0;//reset to zero
-          }
-          world_grid[ngr][ngc].steps = 1;
-          world_grid[ngr][ngc].parent = t;
-          addGridCellToPath(ngr,ngc,testbed);
-          sk.push(pair<int,int>(ngr,ngc));
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
           break;
         }
         if(empty_neighbor_found) continue;
@@ -791,55 +867,25 @@ class PathPlannerGrid{
       stack<pair<int,int> > sk;
       vector<pair<int,int> > aj = {{-1,0},{0,1},{0,-1},{1,0}};//adjacent cells in order of preference
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
+      //parent remains -1, -1
       world_grid[start_grid_x][start_grid_y].steps = 1;
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
       total_points = 0;
       while(!sk.empty()){
         pair<int,int> t = sk.top();
         int ng_no = world_grid[t.first][t.second].steps;
-        if(ng_no == 1){
-          addGridCellToPath(t.first,t.second,testbed);
-          int ngr = t.first+aj[0].first, ngc = t.second+aj[0].second;
-          if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps){
-            world_grid[t.first][t.second].steps = 2;
-            continue;
-          }
-          world_grid[ngr][ngc].steps = 1;
-          sk.push(pair<int,int>(ngr,ngc));
-          world_grid[t.first][t.second].steps = 2;
-        }
-        else if(ng_no == 5){//add yourself in possible backtrack cells
+        if(ng_no == 5){//add yourself in possible backtrack cells
           incumbent_cells[ic_no] = t;
           ic_no++;
           sk.pop();
         }
         else{
           int ngr = t.first+aj[ng_no-1].first, ngc = t.second+aj[ng_no-1].second;
-          if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps){
+          if(isBlocked(ngr,ngc)){
             world_grid[t.first][t.second].steps = ng_no+1;
             continue;
           }
-          if(ic_no){
-            incumbent_cells[ic_no] = t;
-            ic_no++;
-            PathPlannerGrid temp_planner;
-            temp_planner.gridInversion(*this);
-            temp_planner.start_grid_x = incumbent_cells[0].first;
-            temp_planner.start_grid_y = incumbent_cells[0].second;
-            temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
-            temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
-            temp_planner.findshortest(testbed);
-            temp_planner.drawPath(temp_image);
-            for(int i = 0;i<temp_planner.path_points.size();i++){
-              addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
-            }
-            //for(int i = 1;i<ic_no;i++){
-              //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-              //addGridCellToPath(cellrow,cellcol,testbed);
-            //}
-            ic_no = 0;//reset to zero
-          }
-          world_grid[ngr][ngc].steps = 1;
-          sk.push(pair<int,int>(ngr,ngc));
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
           world_grid[t.first][t.second].steps = ng_no+1;
         }
       }
@@ -1003,8 +1049,10 @@ int main(int argc, char* argv[]) {
       path_planner.overlayGrid(testbed.detections,image_gray);
       //path_planner.findshortest(testbed);
       //path_planner.findCoverageGlobalNeighborPreference(testbed);
-      if(pose_id_index_map[robot_id]>=0)
-        path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+      if(pose_id_index_map[robot_id]>=0){
+        //path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+        path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
+      }
       imshow(temp_a,temp_image);
     }
 
