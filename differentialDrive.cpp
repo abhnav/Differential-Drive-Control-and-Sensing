@@ -169,7 +169,7 @@ public:
     //below parameters are found using opencv calibration example module in opencv installation 
     m_width(640),
     m_height(480),
-    m_tagSize(0.135),
+    m_tagSize(13.5),
     m_fx(6.4205269897923586e+02),//focal length in pixels
     m_fy(6.4205269897923586e+02),
     m_px(m_width/2),
@@ -375,10 +375,12 @@ void findRobotPose(int ind, robot_pose &rob){
     detections[ind].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,translation, rotation);
     Eigen::Vector3d ori(0,0,0);
     ori = (rotation*ori)+translation;//ori is now the robot centre
+    ori = ori-planeOrigin;
     rob.x = ori.dot(x_axis);
     rob.y = ori.dot(y_axis);
     Eigen::Vector3d ycoord(0,1,0);
     ycoord = (rotation*ycoord)+translation;
+    ycoord = ycoord-planeOrigin;
     double tempx = ycoord.dot(x_axis), tempy = ycoord.dot(y_axis);
     tempx = tempx-rob.x; tempy = tempy-rob.y;
     rob.omega = atan2(tempy,tempx);
@@ -772,9 +774,9 @@ class PathPlannerGrid{
         //}
         ic_no = 0;//reset to zero
       }
+      world_grid[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_grid[t.first][t.second].parent.first, world_grid[t.first][t.second].parent.second);
       world_grid[ngr][ngc].steps = 1;
       world_grid[ngr][ngc].parent = t;
-      world_grid[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_grid[t.first][t.second].parent.first, world_grid[t.first][t.second].parent.second);
       addGridCellToPath(ngr,ngc,testbed);
       sk.push(pair<int,int>(ngr,ngc));
     }
@@ -1002,13 +1004,13 @@ int main(int argc, char* argv[]) {
   cv::namedWindow(windowName,WINDOW_NORMAL);
   namedWindow(temp_a, WINDOW_NORMAL);
   Serial s_transmit;
-  //s_transmit.open("/dev/ttyUSB0",9600);
+  s_transmit.open("/dev/ttyUSB0",9600);
   cv::Mat image;
   cv::Mat image_gray;
   PathPlannerGrid path_planner(60,60,100);
   //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
-  PurePursuitController controller(40.0,2.0,14.5,80,80,128,false);
+  PurePursuitController controller(40.0,4.0,14.5,80,80,128,false);
 
   //make sure that lookahead always contain atleast the next path point
   //if not then the next point to the closest would automatically become target
@@ -1028,12 +1030,14 @@ int main(int argc, char* argv[]) {
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
-    for(int i = 0;i<n;i++){
-      tag_id_index_map[testbed.detections[i].id] = i;
+    for(int i = 0;i<n;i++)
       if(testbed.detections[i].id == origin_id){//plane extracted
         testbed.extractPlane(i);
+        break;
       }
-      else{//it's a robot or maybe a goal tag
+    for(int i = 0;i<n;i++){
+      tag_id_index_map[testbed.detections[i].id] = i;
+      if(testbed.detections[i].id != origin_id){//robot or goal
         if(robotCount>=10){
           cout<<"too many robots found"<<endl;
           break;
@@ -1059,8 +1063,8 @@ int main(int argc, char* argv[]) {
     pair<int,int> wheel_velocities = controller.computeStimuli(robots[pose_id_index_map[robot_id]],path_planner.path_points);
     if(testbed.m_arduino){
       s_transmit.print((uchar)robot_id);
-      s_transmit.print((uchar)wheel_velocities.first);
-      s_transmit.print((uchar)wheel_velocities.second);
+      s_transmit.print((uchar)(128+wheel_velocities.first));
+      s_transmit.print((uchar)(128+wheel_velocities.second));
       cout<<"velocities sent "<<wheel_velocities.first<<" "<<wheel_velocities.second<<endl;
     }
     if(testbed.m_draw){
