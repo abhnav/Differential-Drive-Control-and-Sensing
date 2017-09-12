@@ -69,6 +69,8 @@ const string intro = "\n"
 extern int optind;
 extern char *optarg;
 using namespace cv;
+string temp_a = "temp shortest path";
+Mat temp_image;
 // For Arduino: locally defined serial port access class
 #include "Serial.h"
 // utility function to provide current system time (used below in
@@ -167,7 +169,7 @@ public:
     //below parameters are found using opencv calibration example module in opencv installation 
     m_width(640),
     m_height(480),
-    m_tagSize(13.0),//in centimetres, can be in any units of your choice
+    m_tagSize(13.5),
     m_fx(6.4205269897923586e+02),//focal length in pixels
     m_fy(6.4205269897923586e+02),
     m_px(m_width/2),
@@ -373,12 +375,12 @@ void findRobotPose(int ind, robot_pose &rob){
     detections[ind].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,translation, rotation);
     Eigen::Vector3d ori(0,0,0);
     ori = (rotation*ori)+translation;//ori is now the robot centre
-    ori = ori - planeOrigin;
+    ori = ori-planeOrigin;
     rob.x = ori.dot(x_axis);
     rob.y = ori.dot(y_axis);
     Eigen::Vector3d ycoord(0,1,0);
     ycoord = (rotation*ycoord)+translation;
-    ycoord = ycoord - planeOrigin;
+    ycoord = ycoord-planeOrigin;
     double tempx = ycoord.dot(x_axis), tempy = ycoord.dot(y_axis);
     tempx = tempx-rob.x; tempy = tempy-rob.y;
     rob.omega = atan2(tempy,tempx);
@@ -476,11 +478,17 @@ struct nd{
   int tot;
   int blacks, whites;
   int tot_x, tot_y;//to calculate the middle pixel for the cell
-  pair<int,int> parent;//-1,-1 indicates univisited
-  int steps;//steps in bfs, states in dfs used in finding coverage, 0 = uncovered, 1 = 0th child, 2 = 1st child, 3 = 2nd child, 4 = 3rd child, 5 = all covered
+  pair<int,int> parent;//parent in bfs, not used in global preference dfs(but parent is still set nevertheless), parent in local dfs, parent in BSA
+  int steps;//steps in bfs(also used to indicate visited nodes), states in global preference dfs used in finding coverage, 0 = uncovered, 1 = 0th child, 2 = 1st child, 3 = 2nd child, 4 = 3rd child, 5 = all covered, visited in local dfs
+  int wall_reference;//-1 no wall, 0 front wall, 1 right wall, 2 left wall, 3 back wall, used in BSA
+
   nd():tot(0),blacks(0),whites(0),tot_x(0),tot_y(0){
-    parent.first = parent.second = -1;
+    wall_reference = parent.first = parent.second = -1;
     steps = 0;
+  }
+  void emptyCell(){
+    tot = blacks = whites = tot_x = tot_y = steps = 0;
+    parent.first = parent.second = wall_reference = -1;
   }
 };
 
@@ -501,9 +509,54 @@ class PathPlannerGrid{
     int goal_grid_x, goal_grid_y;
     int rcells, ccells;
     vector<vector<nd> > world_grid;//grid size is assumed to be manueveurable by the robot
+      //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
+    pair<int,int> aj[3][3][4];
 
-    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0){}
+    PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){
+      initializeLocalPreferenceMatrix();
+    }
+    PathPlannerGrid():total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){
+      initializeLocalPreferenceMatrix();
+    }
+    void initializeLocalPreferenceMatrix(){
+      //moving globally right
+      aj[1][2][0].first = 0, aj[1][2][0].second = 1; 
+      aj[1][2][1].first = 1, aj[1][2][1].second = 0; 
+      aj[1][2][2].first = -1, aj[1][2][2].second = 0; 
+      aj[1][2][3].first = 0, aj[1][2][3].second = -1; 
+      //moving globally left
+      aj[1][0][0].first = 0, aj[1][0][0].second = -1; 
+      aj[1][0][1].first = -1, aj[1][0][1].second = 0; 
+      aj[1][0][2].first = 1, aj[1][0][2].second = 0; 
+      aj[1][0][3].first = 0, aj[1][0][3].second = 1; 
+      //moving globally down
+      aj[2][1][0].first = 1, aj[2][1][0].second = 0; 
+      aj[2][1][1].first = 0, aj[2][1][1].second = -1; 
+      aj[2][1][2].first = 0, aj[2][1][2].second = 1; 
+      aj[2][1][3].first = -1, aj[2][1][3].second = 0; 
+      //moving globally up
+      aj[0][1][0].first = -1, aj[0][1][0].second = 0; 
+      aj[0][1][1].first = 0, aj[0][1][1].second = 1; 
+      aj[0][1][2].first = 0, aj[0][1][2].second = -1; 
+      aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
+    }
 
+    void gridInversion(const PathPlannerGrid &planner){//invert visitable and non visitable cells
+      rcells = planner.rcells;
+      ccells = planner.ccells;
+      world_grid.resize(rcells);
+      for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
+      for(int i = 0;i<rcells;i++)
+        for(int j = 0;j<ccells;j++)
+          if(planner.world_grid[i][j].steps > 0){
+            world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
+            world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
+            world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
+            world_grid[i][j].tot = planner.world_grid[i][j].tot;
+          }
+          else
+            world_grid[i][j].steps = 1;
+    }
     void addPoint(int ind,int px, int py, double x,double y){
       if(total_points+1>path_points.size()){
         path_points.resize(1+total_points);
@@ -516,19 +569,17 @@ class PathPlannerGrid{
       total_points++;
     }
 
-    void setRobotId(int a){robot_id = a;}
-    void setGoalId(int a){goal_id = a;}
-    void setOriginId(int a){origin_id = a;}
-
     bool isEmpty(int r,int c){//criteria based on which to decide whether cell is empty
-      if(world_grid[r][c].blacks > world_grid[r][c].whites*0.20)//more than 5 percent
+      if(world_grid[r][c].blacks > world_grid[r][c].whites*0.2)//more than 20 percent
         return false;
       return true;
     }
-    bool pixelIsInsideTag(int x,int y,pair<float,float> *p){
+    bool pixelIsInsideTag(int x,int y,vector<AprilTags::TagDetection> &detections,int ind){
+      if(ind<0)
+        return false;
       for(int i = 0;i<4;i++){
         int j = (i+1)%4;
-        if((x-p[j].first)*(p[j].second-p[i].second) - (y-p[j].second)*(p[j].first-p[i].first) >= 0)
+        if((x-detections[ind].p[j].first)*(detections[ind].p[j].second-detections[ind].p[i].second) - (y-detections[ind].p[j].second)*(detections[ind].p[j].first-detections[ind].p[i].first) >= 0)
           continue;
         return false;
       }
@@ -536,24 +587,80 @@ class PathPlannerGrid{
     }
     //note the different use of r,c and x,y in the context of matrix and image respectively
     //check for obstacles but excludes the black pixels obtained from apriltags
-    void overlayGrid(vector<AprilTags::TagDetection> &detections,Mat &grayImage){
-      threshold(grayImage,grayImage,threshold_value,255,0);
-      namedWindow("unprocessed",WINDOW_NORMAL);
-      imshow("unprocessed",grayImage);
+    int setRobotCellCoordinates(vector<AprilTags::TagDetection> &detections){
+      if(robot_id < 0){
+        if(start_grid_x == start_grid_y && start_grid_x == -1){
+          cout<<"can't find the robot in tags detected"<<endl;
+          return -1;
+        }
+        else
+          return 1;
+      }
       start_grid_y = detections[robot_id].cxy.first/cell_size_x;
       start_grid_x = detections[robot_id].cxy.second/cell_size_y;
+      return 1;
+    }
+    int setGoalCellCoordinates(vector<AprilTags::TagDetection> &detections){
+      if(goal_id < 0){
+        if(goal_grid_x == goal_grid_y && goal_grid_x == -1){
+          cout<<"can't find goal in tags detected"<<endl;
+          return -1;
+        }
+        else
+          return 1;
+      }
       goal_grid_y = detections[goal_id].cxy.first/cell_size_x;
       goal_grid_x = detections[goal_id].cxy.second/cell_size_y;
-      int r = grayImage.rows, c = grayImage.cols;
+      return 1;
+    }
+
+    void drawGrid(Mat &image){
+      int channels = image.channels();
+      if(channels != 1 && channels != 3){
+        cout<<"can't draw the grid on the given image"<<endl;
+        return;
+      }
+      Vec3b col(0,0,0);
+      int r = image.rows, c = image.cols;
+      for(int i = 0;i<r;i += cell_size_y)
+        for(int j = 0;j<c;j++)
+          if(channels == 1)
+            image.at<uint8_t>(i,j) = 0;
+          else
+            image.at<Vec3b>(i,j) = col;
+      for(int i = 0;i<c;i+=cell_size_x)
+        for(int j = 0;j<r;j++)
+          if(channels == 1)
+            image.at<uint8_t>(j,i) = 0;
+          else
+            image.at<Vec3b>(j,i) = col;
+      for(int i = 0;i<rcells;i++)
+        for(int j = 0;j<ccells;j++){
+          int ax,ay;
+          if(!isEmpty(i,j)) continue;
+          ax = world_grid[i][j].tot_x/world_grid[i][j].tot;
+          ay = world_grid[i][j].tot_y/world_grid[i][j].tot;
+          circle(image, Point(ax,ay), 8, cv::Scalar(0,0,0,0), 2);
+        }
+    }
+    void initializeGrid(int r,int c){//image rows and columns are provided
       rcells = ceil((float)r/cell_size_y);
       ccells = ceil((float)c/cell_size_x);
       world_grid.resize(rcells);
       for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
+      for(int i = 0;i<rcells;i++)
+        for(int j = 0;j<ccells;j++)
+          world_grid[i][j].emptyCell();
+    }
+    void overlayGrid(vector<AprilTags::TagDetection> &detections,Mat &grayImage){
+      threshold(grayImage,grayImage,threshold_value,255,0);
+      int r = grayImage.rows, c = grayImage.cols;
+      initializeGrid(r,c);
       for(int i = 0;i<r;i++){
         for(int j = 0;j<c;j++){
           int gr = i/cell_size_y, gc = j/cell_size_x;
           world_grid[gr][gc].tot++;
-          if(grayImage.at<uint8_t>(i,j) == 255 || pixelIsInsideTag(j+1,i+1,detections[robot_id].p) || pixelIsInsideTag(j+1,i+1,detections[goal_id].p) ){
+          if(grayImage.at<uint8_t>(i,j) == 255 || pixelIsInsideTag(j+1,i+1,detections,robot_id) || pixelIsInsideTag(j+1,i+1,detections,goal_id) || pixelIsInsideTag(j+1,i+1,detections,origin_id)){
             world_grid[gr][gc].whites++;
             grayImage.at<uint8_t>(i,j) = 255;
           }
@@ -565,29 +672,18 @@ class PathPlannerGrid{
           world_grid[gr][gc].tot_y += i+1;
         }
       }
-      for(int i = 0;i<r;i += cell_size_y)
-        for(int j = 0;j<c;j++)
-          grayImage.at<uint8_t>(i,j) = 0;
-      for(int i = 0;i<c;i+=cell_size_x)
-        for(int j = 0;j<r;j++)
-          grayImage.at<uint8_t>(j,i) = 0;
-      for(int i = 0;i<rcells;i++)
-        for(int j = 0;j<ccells;j++){
-          int ax,ay;
-          if(!isEmpty(i,j)) continue;
-          ax = world_grid[i][j].tot_x/world_grid[i][j].tot;
-          ay = world_grid[i][j].tot_y/world_grid[i][j].tot;
-          circle(grayImage, Point(ax,ay), 8, cv::Scalar(0,0,255,0), 2);
-        }
-      namedWindow("processed",WINDOW_NORMAL);
-      imshow("processed",grayImage);
     }
     //find shortest traversal,populate path_points
     void findshortest(AprilInterfaceAndVideoCapture &testbed){
+      if(setRobotCellCoordinates(testbed.detections)<0)
+        return;
+      if(setGoalCellCoordinates(testbed.detections)<0)
+        return;
       queue<pair<int,int> > q;
       q.push(make_pair(start_grid_x,start_grid_y));
       world_grid[start_grid_x][start_grid_y].parent.first = rcells;//just to define parent of 1st node
       world_grid[start_grid_x][start_grid_y].parent.second = ccells;//just to define parent of 1st node
+      world_grid[start_grid_x][start_grid_y].steps = 1;
       vector<pair<int,int> > aj = {{-1,0},{0,1},{1,0},{0,-1}};
       int ngr,ngc;
       pair<int,int> t;
@@ -597,7 +693,7 @@ class PathPlannerGrid{
           break;
         for(int i = 0;i<4;i++){
           ngr = t.first+aj[i].first, ngc = t.second+aj[i].second;
-          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].parent.first>=0 || !isEmpty(ngr,ngc))
+          if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].steps>0 || !isEmpty(ngr,ngc))
             continue;
           world_grid[ngr][ngc].parent.first = t.first;
           world_grid[ngr][ngc].parent.second = t.second;
@@ -607,11 +703,11 @@ class PathPlannerGrid{
       }
       if(!( t.first == goal_grid_x && t.second == goal_grid_y )){
         cout<<"no path to reach destination"<<endl;
-        total_points = -1;//dummy
+        total_points = -1;//dummy to prevent function recall
         return;
       }
       total_points = 0;
-      int cnt = world_grid[t.first][t.second].steps+1;
+      int cnt = world_grid[t.first][t.second].steps;
       pixel_path_points.resize(cnt);
       path_points.resize(cnt);
       for(int i = cnt-1;!(t.first == rcells && t.second == ccells);i--){
@@ -623,59 +719,175 @@ class PathPlannerGrid{
         t = world_grid[t.first][t.second].parent;
       }
     }
-    void findCoverage(AprilInterfaceAndVideoCapture &testbed){
+    pair<int,int> setParentUsingOrientation(robot_pose &ps){
+      double agl = ps.omega*180/PI;
+      if(agl>-45 && agl<45) return pair<int,int> (start_grid_x,start_grid_y-1);
+      if(agl>45 && agl<135) return pair<int,int> (start_grid_x+1,start_grid_y);
+      if(agl>135 || agl<-135) return pair<int,int> (start_grid_x,start_grid_y+1);
+      if(agl<-45 && agl>-135) return pair<int,int> (start_grid_x-1,start_grid_y);
+    }
+    void addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed){
+      int ax,ay;double bx,by;
+      ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
+      ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
+      testbed.pixelToWorld(ax,ay,bx,by);
+      addPoint(total_points,ax,ay,bx,by);
+    }
+    bool isBlocked(int ngr, int ngc){
+      if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
+        return true;
+      return false;
+    }
+    int getWallReference(int r,int c,int pr, int pc){
+      if(pr < 0 || pc < 0)//for global preference coverage, as parent field remains unused
+        return -1;
+      int ngr[4],ngc[4];
+      int nx = r-pr+1, ny = c-pc+1;
+      for(int i = 0;i<4;i++)
+        ngr[i] = r+aj[nx][ny][i].first, ngc[i] = c+aj[nx][ny][i].second;
+      if(isBlocked(ngr[1],ngc[1]))//right wall due to higher priority
+        return 1;
+      if(isBlocked(ngr[0],ngc[0]))//front wall, turn right, left wall reference
+        return 2;
+      if(isBlocked(ngr[2],ngc[2]))//left wall
+        return 2;
+      return -1;//
+    }
+    void addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,vector<pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed){
+      if(ic_no){
+        incumbent_cells[ic_no] = t; 
+        ic_no++;
+        PathPlannerGrid temp_planner;
+        temp_planner.gridInversion(*this);
+        temp_planner.start_grid_x = incumbent_cells[0].first;
+        temp_planner.start_grid_y = incumbent_cells[0].second;
+        temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
+        temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
+        temp_planner.findshortest(testbed);
+        temp_planner.drawPath(temp_image);
+        for(int i = 0;i<temp_planner.path_points.size();i++){
+          addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
+        }
+        //for(int i = 1;i<ic_no;i++){
+          //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
+          //addGridCellToPath(cellrow,cellcol,testbed);
+        //}
+        ic_no = 0;//reset to zero
+      }
+      world_grid[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_grid[t.first][t.second].parent.first, world_grid[t.first][t.second].parent.second);
+      world_grid[ngr][ngc].steps = 1;
+      world_grid[ngr][ngc].parent = t;
+      addGridCellToPath(ngr,ngc,testbed);
+      sk.push(pair<int,int>(ngr,ngc));
+    }
+    void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
+      if(setRobotCellCoordinates(testbed.detections)<0)
+        return;
+      vector<pair<int,int> > incumbent_cells(rcells*ccells);
+      int ic_no = 0;
+      stack<pair<int,int> > sk;
+      sk.push(pair<int,int>(start_grid_x,start_grid_y));
+      total_points = 0;
+      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].steps = 1;//visited
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
+      int ngr,ngc,wall;//neighbor row and column
+
+      while(!sk.empty()){
+        pair<int,int> t = sk.top();
+        int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
+        int ny = t.second-world_grid[t.first][t.second].parent.second+1;
+        if((wall=world_grid[t.first][t.second].wall_reference)>=0){
+          ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
+          if(!isBlocked(ngr,ngc)){
+            addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+            world_grid[ngr][ngc].wall_reference = -1;//to prevent wall exchange to right wall when following left wall
+            continue;
+          }
+        }
+        bool empty_neighbor_found = false;
+        for(int i = 0;i<4;i++){
+          ngr = t.first+aj[nx][ny][i].first;
+          ngc = t.second+aj[nx][ny][i].second;
+          if(isBlocked(ngr,ngc))
+            continue;
+          empty_neighbor_found = true;
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+          break;
+        }
+        if(empty_neighbor_found) continue;
+        incumbent_cells[ic_no] = t;
+        ic_no++;
+        sk.pop();
+        if(sk.empty()) break;
+        pair<int,int> next_below = sk.top();
+        world_grid[next_below.first][next_below.second].parent = t;
+        world_grid[next_below.first][next_below.second].wall_reference = 1;//since turning 180 degrees
+      }
+    }
+    void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
+      if(setRobotCellCoordinates(testbed.detections)<0)
+        return;
+      vector<pair<int,int> > incumbent_cells(rcells*ccells);
+      int ic_no = 0;
+      stack<pair<int,int> > sk;
+      sk.push(pair<int,int>(start_grid_x,start_grid_y));
+      total_points = 0;
+      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].steps = 1;//visited
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
+      int ngr,ngc;//neighbor row and column
+
+      while(!sk.empty()){
+        pair<int,int> t = sk.top();
+        int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
+        int ny = t.second-world_grid[t.first][t.second].parent.second+1;
+        bool empty_neighbor_found = false;
+        for(int i = 0;i<4;i++){
+          ngr = t.first+aj[nx][ny][i].first;
+          ngc = t.second+aj[nx][ny][i].second;
+          if(isBlocked(ngr,ngc))
+            continue;
+          empty_neighbor_found = true;
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+          break;
+        }
+        if(empty_neighbor_found) continue;
+        incumbent_cells[ic_no] = t;
+        ic_no++;
+        sk.pop();
+        if(sk.empty()) break;
+        pair<int,int> next_below = sk.top();
+        world_grid[next_below.first][next_below.second].parent = t;
+      }
+    }
+    void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed){
+      if(setRobotCellCoordinates(testbed.detections)<0)
+        return;
       vector<pair<int,int> > incumbent_cells(rcells*ccells);
       int ic_no = 0;//points in above vector
       stack<pair<int,int> > sk;
       vector<pair<int,int> > aj = {{-1,0},{0,1},{0,-1},{1,0}};//adjacent cells in order of preference
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
+      //parent remains -1, -1
       world_grid[start_grid_x][start_grid_y].steps = 1;
-      int ax,ay;double bx,by;
+      addGridCellToPath(start_grid_x,start_grid_y,testbed);
       total_points = 0;
       while(!sk.empty()){
         pair<int,int> t = sk.top();
         int ng_no = world_grid[t.first][t.second].steps;
-        if(ng_no == 1){
-          ax = world_grid[t.first][t.second].tot_x/world_grid[t.first][t.second].tot;
-          ay = world_grid[t.first][t.second].tot_y/world_grid[t.first][t.second].tot;
-          testbed.pixelToWorld(ax,ay,bx,by);
-          addPoint(total_points,ax,ay,bx,by);
-          int ngr = t.first+aj[0].first, ngc = t.second+aj[0].second;
-          if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps){
-            world_grid[t.first][t.second].steps = 2;
-            continue;
-          }
-          world_grid[ngr][ngc].steps = 1;
-          sk.push(pair<int,int>(ngr,ngc));
-          world_grid[t.first][t.second].steps = 2;
-        }
-        else if(ng_no == 5){//add yourself in possible backtrack cells
-          incumbent_cells[ic_no].first = t.first;
-          incumbent_cells[ic_no].second = t.second;
+        if(ng_no == 5){//add yourself in possible backtrack cells
+          incumbent_cells[ic_no] = t;
           ic_no++;
           sk.pop();
         }
         else{
           int ngr = t.first+aj[ng_no-1].first, ngc = t.second+aj[ng_no-1].second;
-          if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps){
+          if(isBlocked(ngr,ngc)){
             world_grid[t.first][t.second].steps = ng_no+1;
             continue;
           }
-          if(ic_no){
-            incumbent_cells[ic_no].first = t.first;
-            incumbent_cells[ic_no].second = t.second;
-            ic_no++;
-            for(int i = 1;i<ic_no;i++){
-              int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-              ax = world_grid[cellrow][cellcol].tot_x/world_grid[cellrow][cellcol].tot;
-              ay = world_grid[cellrow][cellcol].tot_y/world_grid[cellrow][cellcol].tot;
-              testbed.pixelToWorld(ax,ay,bx,by);
-              addPoint(total_points,ax,ay,bx,by);
-            }
-            ic_no = 0;//reset to zero
-          }
-          world_grid[ngr][ngc].steps = 1;
-          sk.push(pair<int,int>(ngr,ngc));
+          addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
           world_grid[t.first][t.second].steps = ng_no+1;
         }
       }
@@ -732,7 +944,7 @@ class PurePursuitController{
         next_point++;
       return next_point;
     }
-    int findNextPointByPathIndex(robot_pose &rp, vector<pt> &path){//this won't work once after the robot has reached the destination
+    int findNextPointByPathIndex(robot_pose &rp, vector<pt> &path){
       static int next_index = 0;
       if(next_index == path.size())
         return next_index;
@@ -786,80 +998,91 @@ int main(int argc, char* argv[]) {
   }
   cout << "Processing video" << endl;
   testbed.setupVideo();
-  cv::Mat image;
-  cv::Mat image_gray;
-  vector<robot_pose> robots(10);
-  PathPlannerGrid path_planner(60,60,100);
-  //PathPlannerUser path_planner(&testbed);
-  PurePursuitController controller(40.0,2.0,14.5,100,100,128,false);
-  //PurePursuitController controller(20.0,2.0,14.5,70,70,128,true);//make sure that lookahead always contain atleast the next path point, if not then the next point to the closest would automatically become target
-  Serial s_transmit;
-  s_transmit.open("/dev/ttyUSB0",9600);
-
   int frame = 0;
   double last_t = tic();
   const char *windowName = "What do you see?";
   cv::namedWindow(windowName,WINDOW_NORMAL);
-  unsigned char at, bt;
+  namedWindow(temp_a, WINDOW_NORMAL);
+  Serial s_transmit;
+  s_transmit.open("/dev/ttyUSB0",9600);
+  cv::Mat image;
+  cv::Mat image_gray;
+  PathPlannerGrid path_planner(60,60,100);
+  //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
+  PurePursuitController controller(40.0,4.0,14.5,80,80,128,false);
+
+  //make sure that lookahead always contain atleast the next path point
+  //if not then the next point to the closest would automatically become target
+  //PurePursuitController controller(20.0,2.0,14.5,70,70,128,true);
+  int robot_id = 1,goal_id = 2,origin_id = 0;
   int robotCount;
-  int robot_id = 1,robindex = -1,goal_id = 2,goalindex = -1,origin_id = 0, originindex = -1, robot_pose_index = -1;
+  int max_robots = 10;
+  vector<robot_pose> robots(max_robots);
+  vector<int> tag_id_index_map(max_robots);//tag id should also not go beyond max_robots
+  vector<int> pose_id_index_map(max_robots);
   while (true){
+    for(int i = 0;i<max_robots;i++)
+      tag_id_index_map[i] = pose_id_index_map[i] = -1;
     robotCount = 0;
-    testbed.m_cap>>image;
+    testbed.m_cap >> image;
+    image.copyTo(temp_image);
+
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
-    for(int i = 0;i<n;i++){
+    for(int i = 0;i<n;i++)
       if(testbed.detections[i].id == origin_id){//plane extracted
-        originindex = i;
         testbed.extractPlane(i);
+        break;
       }
-      else if(testbed.detections[i].id == goal_id)
-        goalindex = i;
-      else{//it's a robot
+    for(int i = 0;i<n;i++){
+      tag_id_index_map[testbed.detections[i].id] = i;
+      if(testbed.detections[i].id != origin_id){//robot or goal
         if(robotCount>=10){
+          cout<<"too many robots found"<<endl;
           break;
         }
-        testbed.findRobotPose(i,robots[robotCount++]);
-        if(testbed.detections[i].id == robot_id){
-          robot_pose_index = robotCount-1;
-          robindex = i;
-        }
+        testbed.findRobotPose(i,robots[robotCount++]);//i is the index in detections for which to find pose
+        pose_id_index_map[testbed.detections[i].id] = robotCount-1;
       }
     }
-    if(robindex>=0 && goalindex>=0 && originindex>=0 && path_planner.total_points == 0){
-        path_planner.setRobotId(robindex);
-        path_planner.setOriginId(originindex);
-        path_planner.setGoalId(goalindex);
-        path_planner.overlayGrid(testbed.detections,image_gray);
-        path_planner.findCoverage(testbed);
-        //path_planner.findshortest(testbed);
+    if(path_planner.total_points == 0){
+      path_planner.robot_id = tag_id_index_map[robot_id];
+      path_planner.goal_id = tag_id_index_map[goal_id];
+      path_planner.origin_id = tag_id_index_map[origin_id];
+      path_planner.overlayGrid(testbed.detections,image_gray);
+      //path_planner.findshortest(testbed);
+      //path_planner.findCoverageGlobalNeighborPreference(testbed);
+      if(pose_id_index_map[robot_id]>=0){
+        //path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+        path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
+      }
+      imshow(temp_a,temp_image);
     }
-    pair<int,int> wheel_velocities = controller.computeStimuli(robots[robot_pose_index],path_planner.path_points);
+
+    pair<int,int> wheel_velocities = controller.computeStimuli(robots[pose_id_index_map[robot_id]],path_planner.path_points);
     if(testbed.m_arduino){
-      s_transmit.print((unsigned char)robot_id);
-      at = (unsigned char)(128+wheel_velocities.first);
-      bt = (unsigned char)(128+wheel_velocities.second);
-      cout<<"sent "<<(int)at<<" "<<(int)bt<<endl;
-      s_transmit.print(at);
-      s_transmit.print(bt);
+      s_transmit.print((uchar)robot_id);
+      s_transmit.print((uchar)(128+wheel_velocities.first));
+      s_transmit.print((uchar)(128+wheel_velocities.second));
+      cout<<"velocities sent "<<wheel_velocities.first<<" "<<wheel_velocities.second<<endl;
     }
     if(testbed.m_draw){
-      //for(int i = 0;i<n;i++){
-        //testbed.detections[i].draw(image);
-      //}
+      for(int i = 0;i<n;i++){
+        testbed.detections[i].draw(image);
+      }
+      path_planner.drawGrid(image);
       path_planner.drawPath(image);
       imshow(windowName,image);
     }
-    //// print out the frame rate at which image frames are being processed
+    // print out the frame rate at which image frames are being processed
     frame++;
     if (frame % 10 == 0) {
       double t = tic();
       cout << "  " << 10./(t-last_t) << " fps" << endl;
       last_t = t;
     }
-    if (waitKey(10) == 27)
-        break;
+    if (cv::waitKey(10) == 27) break;
   }
   return 0;
 }
