@@ -1,3 +1,7 @@
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/edit_cache.dir
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/rebuild_cache.dir
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/differentialDrive.dir
+/home/super/Documents/DifferentialDrive/build/CMakeFiles/planner.dir
+/home/super/Documents/DifferentialDrive/build/CMakeFiles/serial.dir
+/home/super/Documents/DifferentialDrive/build/CMakeFiles/controller.dir
+/home/super/Documents/DifferentialDrive/build/CMakeFiles/aprilvideointerface.dir

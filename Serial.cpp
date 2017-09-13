@@ -15,7 +15,6 @@
 
 using namespace std;
 
-
 // open a serial port connection
 void Serial::open(const string& port, int rate) {
   m_serialPort = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);

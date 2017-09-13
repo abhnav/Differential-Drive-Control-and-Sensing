@@ -4,8 +4,8 @@
  * @author: Michael Kaess
  */
 
-#pragma once
-
+#ifndef SERIAL_H
+#define SERIAL_H
 #include <string>
 
 
@@ -40,3 +40,4 @@ public:
   void print(float num) const;
 
 };
+#endif

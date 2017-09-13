@@ -116,4 +116,8 @@ set(CMAKE_MAKEFILE_PRODUCTS
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/differentialDrive.dir/DependInfo.cmake"
+  "CMakeFiles/planner.dir/DependInfo.cmake"
+  "CMakeFiles/serial.dir/DependInfo.cmake"
+  "CMakeFiles/controller.dir/DependInfo.cmake"
+  "CMakeFiles/aprilvideointerface.dir/DependInfo.cmake"
   )

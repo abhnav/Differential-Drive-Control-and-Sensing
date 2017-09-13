@@ -123,13 +123,65 @@ differentialDrive/fast:
 	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/build
 .PHONY : differentialDrive/fast
 
+#=============================================================================
+# Target rules for targets named planner
+
+# Build rule for target.
+planner: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 planner
+.PHONY : planner
+
+# fast build rule for target.
+planner/fast:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/build
+.PHONY : planner/fast
+
+#=============================================================================
+# Target rules for targets named serial
+
+# Build rule for target.
+serial: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 serial
+.PHONY : serial
+
+# fast build rule for target.
+serial/fast:
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/build
+.PHONY : serial/fast
+
+#=============================================================================
+# Target rules for targets named controller
+
+# Build rule for target.
+controller: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 controller
+.PHONY : controller
+
+# fast build rule for target.
+controller/fast:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/build
+.PHONY : controller/fast
+
+#=============================================================================
+# Target rules for targets named aprilvideointerface
+
+# Build rule for target.
+aprilvideointerface: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 aprilvideointerface
+.PHONY : aprilvideointerface
+
+# fast build rule for target.
+aprilvideointerface/fast:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/build
+.PHONY : aprilvideointerface/fast
+
 Serial.o: Serial.cpp.o
 
 .PHONY : Serial.o
 
 # target to build an object file
 Serial.cpp.o:
-	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.o
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.o
 .PHONY : Serial.cpp.o
 
 Serial.i: Serial.cpp.i
@@ -138,7 +190,7 @@ Serial.i: Serial.cpp.i
 
 # target to preprocess a source file
 Serial.cpp.i:
-	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.i
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.i
 .PHONY : Serial.cpp.i
 
 Serial.s: Serial.cpp.s
@@ -147,8 +199,62 @@ Serial.s: Serial.cpp.s
 
 # target to generate assembly for a file
 Serial.cpp.s:
-	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/Serial.cpp.s
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.s
 .PHONY : Serial.cpp.s
+
+aprilvideointerface.o: aprilvideointerface.cpp.o
+
+.PHONY : aprilvideointerface.o
+
+# target to build an object file
+aprilvideointerface.cpp.o:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o
+.PHONY : aprilvideointerface.cpp.o
+
+aprilvideointerface.i: aprilvideointerface.cpp.i
+
+.PHONY : aprilvideointerface.i
+
+# target to preprocess a source file
+aprilvideointerface.cpp.i:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.i
+.PHONY : aprilvideointerface.cpp.i
+
+aprilvideointerface.s: aprilvideointerface.cpp.s
+
+.PHONY : aprilvideointerface.s
+
+# target to generate assembly for a file
+aprilvideointerface.cpp.s:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.s
+.PHONY : aprilvideointerface.cpp.s
+
+controllers.o: controllers.cpp.o
+
+.PHONY : controllers.o
+
+# target to build an object file
+controllers.cpp.o:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.o
+.PHONY : controllers.cpp.o
+
+controllers.i: controllers.cpp.i
+
+.PHONY : controllers.i
+
+# target to preprocess a source file
+controllers.cpp.i:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.i
+.PHONY : controllers.cpp.i
+
+controllers.s: controllers.cpp.s
+
+.PHONY : controllers.s
+
+# target to generate assembly for a file
+controllers.cpp.s:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.s
+.PHONY : controllers.cpp.s
 
 differentialDrive.o: differentialDrive.cpp.o
 
@@ -177,6 +283,33 @@ differentialDrive.cpp.s:
 	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/differentialDrive.cpp.s
 .PHONY : differentialDrive.cpp.s
 
+pathplanners.o: pathplanners.cpp.o
+
+.PHONY : pathplanners.o
+
+# target to build an object file
+pathplanners.cpp.o:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.o
+.PHONY : pathplanners.cpp.o
+
+pathplanners.i: pathplanners.cpp.i
+
+.PHONY : pathplanners.i
+
+# target to preprocess a source file
+pathplanners.cpp.i:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.i
+.PHONY : pathplanners.cpp.i
+
+pathplanners.s: pathplanners.cpp.s
+
+.PHONY : pathplanners.s
+
+# target to generate assembly for a file
+pathplanners.cpp.s:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.s
+.PHONY : pathplanners.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -186,12 +319,25 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... differentialDrive"
+	@echo "... planner"
+	@echo "... serial"
+	@echo "... controller"
+	@echo "... aprilvideointerface"
 	@echo "... Serial.o"
 	@echo "... Serial.i"
 	@echo "... Serial.s"
+	@echo "... aprilvideointerface.o"
+	@echo "... aprilvideointerface.i"
+	@echo "... aprilvideointerface.s"
+	@echo "... controllers.o"
+	@echo "... controllers.i"
+	@echo "... controllers.s"
 	@echo "... differentialDrive.o"
 	@echo "... differentialDrive.i"
 	@echo "... differentialDrive.s"
+	@echo "... pathplanners.o"
+	@echo "... pathplanners.i"
+	@echo "... pathplanners.s"
 .PHONY : help
 
 

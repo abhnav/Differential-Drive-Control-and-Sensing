@@ -1,6 +1,5 @@
 file(REMOVE_RECURSE
   "CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o"
-  "CMakeFiles/differentialDrive.dir/Serial.cpp.o"
   "differentialDrive.pdb"
   "differentialDrive"
 )
