@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o"
-  "libaprilvideointerface.pdb"
-  "libaprilvideointerface.so"
+  "CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o"
+  "lib/libaprilvideointerface.pdb"
+  "lib/libaprilvideointerface.so"
 )
 
 # Per-language clean rules from dependency scanning.

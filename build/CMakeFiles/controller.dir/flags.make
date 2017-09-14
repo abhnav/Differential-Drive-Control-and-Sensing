@@ -6,5 +6,5 @@ CXX_FLAGS = -fPIC   -std=gnu++11
 
 CXX_DEFINES = -Dcontroller_EXPORTS
 
-CXX_INCLUDES = -I/opt/ros/kinetic/include/opencv-3.1.0-dev/opencv -I/opt/ros/kinetic/include/opencv-3.1.0-dev -I/home/super/Documents/DifferentialDrive -I/home/super/Documents/DifferentialDrive/AprilTags/build/include -I/usr/local/include/eigen3 
+CXX_INCLUDES = -I/opt/ros/kinetic/include/opencv-3.1.0-dev/opencv -I/opt/ros/kinetic/include/opencv-3.1.0-dev -I/home/super/Documents/DifferentialDrive/include -I/home/super/Documents/DifferentialDrive/AprilTags/build/include -I/usr/local/include/eigen3 
 

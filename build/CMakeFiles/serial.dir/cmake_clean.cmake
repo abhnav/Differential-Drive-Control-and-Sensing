@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/serial.dir/Serial.cpp.o"
-  "libserial.pdb"
-  "libserial.so"
+  "CMakeFiles/serial.dir/src/Serial.cpp.o"
+  "lib/libserial.pdb"
+  "lib/libserial.so"
 )
 
 # Per-language clean rules from dependency scanning.

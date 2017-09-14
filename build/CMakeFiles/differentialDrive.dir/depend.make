@@ -10,12 +10,12 @@ CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../AprilTags/build/inc
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../AprilTags/build/include/AprilTags/TagDetection.h
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../AprilTags/build/include/AprilTags/TagDetector.h
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../AprilTags/build/include/AprilTags/TagFamily.h
-CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../Serial.h
-CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../aprilvideointerface.h
-CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../controllers.h
+CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../include/Serial.h
+CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../include/aprilvideointerface.h
+CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../include/controllers.h
+CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../include/pathplanners.h
+CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../include/structures.h
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../differentialDrive.cpp
-CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../pathplanners.h
-CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: ../structures.h
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: /opt/ros/kinetic/include/opencv-3.1.0-dev/opencv/cxcore.h
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: /opt/ros/kinetic/include/opencv-3.1.0-dev/opencv2/calib3d.hpp
 CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o: /opt/ros/kinetic/include/opencv-3.1.0-dev/opencv2/calib3d/calib3d_c.h

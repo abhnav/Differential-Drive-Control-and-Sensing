@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o"
-  "differentialDrive.pdb"
-  "differentialDrive"
+  "bin/differentialDrive.pdb"
+  "bin/differentialDrive"
 )
 
 # Per-language clean rules from dependency scanning.

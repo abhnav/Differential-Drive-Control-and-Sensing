@@ -57,49 +57,49 @@ include CMakeFiles/controller.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/controller.dir/flags.make
 
-CMakeFiles/controller.dir/controllers.cpp.o: CMakeFiles/controller.dir/flags.make
-CMakeFiles/controller.dir/controllers.cpp.o: ../controllers.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/controller.dir/controllers.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller.dir/controllers.cpp.o -c /home/super/Documents/DifferentialDrive/controllers.cpp
+CMakeFiles/controller.dir/src/controllers.cpp.o: CMakeFiles/controller.dir/flags.make
+CMakeFiles/controller.dir/src/controllers.cpp.o: ../src/controllers.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/controller.dir/src/controllers.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller.dir/src/controllers.cpp.o -c /home/super/Documents/DifferentialDrive/src/controllers.cpp
 
-CMakeFiles/controller.dir/controllers.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/controller.dir/controllers.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/super/Documents/DifferentialDrive/controllers.cpp > CMakeFiles/controller.dir/controllers.cpp.i
+CMakeFiles/controller.dir/src/controllers.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/controller.dir/src/controllers.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/super/Documents/DifferentialDrive/src/controllers.cpp > CMakeFiles/controller.dir/src/controllers.cpp.i
 
-CMakeFiles/controller.dir/controllers.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller.dir/controllers.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/super/Documents/DifferentialDrive/controllers.cpp -o CMakeFiles/controller.dir/controllers.cpp.s
+CMakeFiles/controller.dir/src/controllers.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller.dir/src/controllers.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/super/Documents/DifferentialDrive/src/controllers.cpp -o CMakeFiles/controller.dir/src/controllers.cpp.s
 
-CMakeFiles/controller.dir/controllers.cpp.o.requires:
+CMakeFiles/controller.dir/src/controllers.cpp.o.requires:
 
-.PHONY : CMakeFiles/controller.dir/controllers.cpp.o.requires
+.PHONY : CMakeFiles/controller.dir/src/controllers.cpp.o.requires
 
-CMakeFiles/controller.dir/controllers.cpp.o.provides: CMakeFiles/controller.dir/controllers.cpp.o.requires
-	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.o.provides.build
-.PHONY : CMakeFiles/controller.dir/controllers.cpp.o.provides
+CMakeFiles/controller.dir/src/controllers.cpp.o.provides: CMakeFiles/controller.dir/src/controllers.cpp.o.requires
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/src/controllers.cpp.o.provides.build
+.PHONY : CMakeFiles/controller.dir/src/controllers.cpp.o.provides
 
-CMakeFiles/controller.dir/controllers.cpp.o.provides.build: CMakeFiles/controller.dir/controllers.cpp.o
+CMakeFiles/controller.dir/src/controllers.cpp.o.provides.build: CMakeFiles/controller.dir/src/controllers.cpp.o
 
 
 # Object files for target controller
 controller_OBJECTS = \
-"CMakeFiles/controller.dir/controllers.cpp.o"
+"CMakeFiles/controller.dir/src/controllers.cpp.o"
 
 # External object files for target controller
 controller_EXTERNAL_OBJECTS =
 
-libcontroller.so: CMakeFiles/controller.dir/controllers.cpp.o
-libcontroller.so: CMakeFiles/controller.dir/build.make
-libcontroller.so: CMakeFiles/controller.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library libcontroller.so"
+lib/libcontroller.so: CMakeFiles/controller.dir/src/controllers.cpp.o
+lib/libcontroller.so: CMakeFiles/controller.dir/build.make
+lib/libcontroller.so: CMakeFiles/controller.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library lib/libcontroller.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/controller.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-CMakeFiles/controller.dir/build: libcontroller.so
+CMakeFiles/controller.dir/build: lib/libcontroller.so
 
 .PHONY : CMakeFiles/controller.dir/build
 
-CMakeFiles/controller.dir/requires: CMakeFiles/controller.dir/controllers.cpp.o.requires
+CMakeFiles/controller.dir/requires: CMakeFiles/controller.dir/src/controllers.cpp.o.requires
 
 .PHONY : CMakeFiles/controller.dir/requires
 

@@ -57,49 +57,49 @@ include CMakeFiles/aprilvideointerface.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/aprilvideointerface.dir/flags.make
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o: CMakeFiles/aprilvideointerface.dir/flags.make
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o: ../aprilvideointerface.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o -c /home/super/Documents/DifferentialDrive/aprilvideointerface.cpp
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o: CMakeFiles/aprilvideointerface.dir/flags.make
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o: ../src/aprilvideointerface.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o -c /home/super/Documents/DifferentialDrive/src/aprilvideointerface.cpp
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/super/Documents/DifferentialDrive/aprilvideointerface.cpp > CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.i
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/super/Documents/DifferentialDrive/src/aprilvideointerface.cpp > CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.i
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/super/Documents/DifferentialDrive/aprilvideointerface.cpp -o CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.s
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/super/Documents/DifferentialDrive/src/aprilvideointerface.cpp -o CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.s
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.requires:
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.requires:
 
-.PHONY : CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.requires
+.PHONY : CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.requires
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.provides: CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.requires
-	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.provides.build
-.PHONY : CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.provides
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.provides: CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.requires
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.provides.build
+.PHONY : CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.provides
 
-CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.provides.build: CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o
+CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.provides.build: CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o
 
 
 # Object files for target aprilvideointerface
 aprilvideointerface_OBJECTS = \
-"CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o"
+"CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o"
 
 # External object files for target aprilvideointerface
 aprilvideointerface_EXTERNAL_OBJECTS =
 
-libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o
-libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/build.make
-libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library libaprilvideointerface.so"
+lib/libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o
+lib/libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/build.make
+lib/libaprilvideointerface.so: CMakeFiles/aprilvideointerface.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/super/Documents/DifferentialDrive/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library lib/libaprilvideointerface.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/aprilvideointerface.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-CMakeFiles/aprilvideointerface.dir/build: libaprilvideointerface.so
+CMakeFiles/aprilvideointerface.dir/build: lib/libaprilvideointerface.so
 
 .PHONY : CMakeFiles/aprilvideointerface.dir/build
 
-CMakeFiles/aprilvideointerface.dir/requires: CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o.requires
+CMakeFiles/aprilvideointerface.dir/requires: CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o.requires
 
 .PHONY : CMakeFiles/aprilvideointerface.dir/requires
 

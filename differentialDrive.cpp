@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
         pose_id_index_map[testbed.detections[i].id] = robotCount-1;
       }
     }
-    if(path_planner.total_points == 0){
+    if(!path_planner.total_points){//no path algorithm ever run before
       path_planner.robot_id = tag_id_index_map[robot_id];
       path_planner.goal_id = tag_id_index_map[goal_id];
       path_planner.origin_id = tag_id_index_map[origin_id];

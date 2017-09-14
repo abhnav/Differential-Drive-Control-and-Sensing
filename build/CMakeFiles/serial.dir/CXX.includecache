@@ -6,7 +6,11 @@
 
 #IncludeRegexTransform: 
 
-/home/super/Documents/DifferentialDrive/Serial.cpp
+../include/Serial.h
+string
+-
+
+/home/super/Documents/DifferentialDrive/src/Serial.cpp
 fcntl.h
 -
 termios.h
@@ -20,9 +24,5 @@ sstream
 unistd.h
 -
 Serial.h
-/home/super/Documents/DifferentialDrive/Serial.h
-
-/home/super/Documents/DifferentialDrive/Serial.h
-string
--
+/home/super/Documents/DifferentialDrive/src/Serial.h
 

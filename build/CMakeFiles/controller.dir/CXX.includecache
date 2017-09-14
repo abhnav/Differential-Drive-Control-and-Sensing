@@ -6,24 +6,24 @@
 
 #IncludeRegexTransform: 
 
-/home/super/Documents/DifferentialDrive/controllers.cpp
-controllers.h
-/home/super/Documents/DifferentialDrive/controllers.h
-Eigen/Geometry
--
-cmath
--
-
-/home/super/Documents/DifferentialDrive/controllers.h
+../include/controllers.h
 utility
 -
 vector
 -
 structures.h
-/home/super/Documents/DifferentialDrive/structures.h
+../include/structures.h
 
-/home/super/Documents/DifferentialDrive/structures.h
+../include/structures.h
 utility
+-
+
+/home/super/Documents/DifferentialDrive/src/controllers.cpp
+controllers.h
+/home/super/Documents/DifferentialDrive/src/controllers.h
+Eigen/Geometry
+-
+cmath
 -
 
 /usr/local/include/eigen3/Eigen/Cholesky

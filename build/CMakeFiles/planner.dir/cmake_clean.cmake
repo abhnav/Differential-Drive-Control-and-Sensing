@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/planner.dir/pathplanners.cpp.o"
-  "libplanner.pdb"
-  "libplanner.so"
+  "CMakeFiles/planner.dir/src/pathplanners.cpp.o"
+  "lib/libplanner.pdb"
+  "lib/libplanner.so"
 )
 
 # Per-language clean rules from dependency scanning.

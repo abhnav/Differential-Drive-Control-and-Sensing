@@ -175,87 +175,6 @@ aprilvideointerface/fast:
 	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/build
 .PHONY : aprilvideointerface/fast
 
-Serial.o: Serial.cpp.o
-
-.PHONY : Serial.o
-
-# target to build an object file
-Serial.cpp.o:
-	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.o
-.PHONY : Serial.cpp.o
-
-Serial.i: Serial.cpp.i
-
-.PHONY : Serial.i
-
-# target to preprocess a source file
-Serial.cpp.i:
-	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.i
-.PHONY : Serial.cpp.i
-
-Serial.s: Serial.cpp.s
-
-.PHONY : Serial.s
-
-# target to generate assembly for a file
-Serial.cpp.s:
-	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/Serial.cpp.s
-.PHONY : Serial.cpp.s
-
-aprilvideointerface.o: aprilvideointerface.cpp.o
-
-.PHONY : aprilvideointerface.o
-
-# target to build an object file
-aprilvideointerface.cpp.o:
-	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.o
-.PHONY : aprilvideointerface.cpp.o
-
-aprilvideointerface.i: aprilvideointerface.cpp.i
-
-.PHONY : aprilvideointerface.i
-
-# target to preprocess a source file
-aprilvideointerface.cpp.i:
-	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.i
-.PHONY : aprilvideointerface.cpp.i
-
-aprilvideointerface.s: aprilvideointerface.cpp.s
-
-.PHONY : aprilvideointerface.s
-
-# target to generate assembly for a file
-aprilvideointerface.cpp.s:
-	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/aprilvideointerface.cpp.s
-.PHONY : aprilvideointerface.cpp.s
-
-controllers.o: controllers.cpp.o
-
-.PHONY : controllers.o
-
-# target to build an object file
-controllers.cpp.o:
-	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.o
-.PHONY : controllers.cpp.o
-
-controllers.i: controllers.cpp.i
-
-.PHONY : controllers.i
-
-# target to preprocess a source file
-controllers.cpp.i:
-	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.i
-.PHONY : controllers.cpp.i
-
-controllers.s: controllers.cpp.s
-
-.PHONY : controllers.s
-
-# target to generate assembly for a file
-controllers.cpp.s:
-	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/controllers.cpp.s
-.PHONY : controllers.cpp.s
-
 differentialDrive.o: differentialDrive.cpp.o
 
 .PHONY : differentialDrive.o
@@ -283,32 +202,113 @@ differentialDrive.cpp.s:
 	$(MAKE) -f CMakeFiles/differentialDrive.dir/build.make CMakeFiles/differentialDrive.dir/differentialDrive.cpp.s
 .PHONY : differentialDrive.cpp.s
 
-pathplanners.o: pathplanners.cpp.o
+src/Serial.o: src/Serial.cpp.o
 
-.PHONY : pathplanners.o
+.PHONY : src/Serial.o
 
 # target to build an object file
-pathplanners.cpp.o:
-	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.o
-.PHONY : pathplanners.cpp.o
+src/Serial.cpp.o:
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/src/Serial.cpp.o
+.PHONY : src/Serial.cpp.o
 
-pathplanners.i: pathplanners.cpp.i
+src/Serial.i: src/Serial.cpp.i
 
-.PHONY : pathplanners.i
+.PHONY : src/Serial.i
 
 # target to preprocess a source file
-pathplanners.cpp.i:
-	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.i
-.PHONY : pathplanners.cpp.i
+src/Serial.cpp.i:
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/src/Serial.cpp.i
+.PHONY : src/Serial.cpp.i
 
-pathplanners.s: pathplanners.cpp.s
+src/Serial.s: src/Serial.cpp.s
 
-.PHONY : pathplanners.s
+.PHONY : src/Serial.s
 
 # target to generate assembly for a file
-pathplanners.cpp.s:
-	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/pathplanners.cpp.s
-.PHONY : pathplanners.cpp.s
+src/Serial.cpp.s:
+	$(MAKE) -f CMakeFiles/serial.dir/build.make CMakeFiles/serial.dir/src/Serial.cpp.s
+.PHONY : src/Serial.cpp.s
+
+src/aprilvideointerface.o: src/aprilvideointerface.cpp.o
+
+.PHONY : src/aprilvideointerface.o
+
+# target to build an object file
+src/aprilvideointerface.cpp.o:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o
+.PHONY : src/aprilvideointerface.cpp.o
+
+src/aprilvideointerface.i: src/aprilvideointerface.cpp.i
+
+.PHONY : src/aprilvideointerface.i
+
+# target to preprocess a source file
+src/aprilvideointerface.cpp.i:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.i
+.PHONY : src/aprilvideointerface.cpp.i
+
+src/aprilvideointerface.s: src/aprilvideointerface.cpp.s
+
+.PHONY : src/aprilvideointerface.s
+
+# target to generate assembly for a file
+src/aprilvideointerface.cpp.s:
+	$(MAKE) -f CMakeFiles/aprilvideointerface.dir/build.make CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.s
+.PHONY : src/aprilvideointerface.cpp.s
+
+src/controllers.o: src/controllers.cpp.o
+
+.PHONY : src/controllers.o
+
+# target to build an object file
+src/controllers.cpp.o:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/src/controllers.cpp.o
+.PHONY : src/controllers.cpp.o
+
+src/controllers.i: src/controllers.cpp.i
+
+.PHONY : src/controllers.i
+
+# target to preprocess a source file
+src/controllers.cpp.i:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/src/controllers.cpp.i
+.PHONY : src/controllers.cpp.i
+
+src/controllers.s: src/controllers.cpp.s
+
+.PHONY : src/controllers.s
+
+# target to generate assembly for a file
+src/controllers.cpp.s:
+	$(MAKE) -f CMakeFiles/controller.dir/build.make CMakeFiles/controller.dir/src/controllers.cpp.s
+.PHONY : src/controllers.cpp.s
+
+src/pathplanners.o: src/pathplanners.cpp.o
+
+.PHONY : src/pathplanners.o
+
+# target to build an object file
+src/pathplanners.cpp.o:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/src/pathplanners.cpp.o
+.PHONY : src/pathplanners.cpp.o
+
+src/pathplanners.i: src/pathplanners.cpp.i
+
+.PHONY : src/pathplanners.i
+
+# target to preprocess a source file
+src/pathplanners.cpp.i:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/src/pathplanners.cpp.i
+.PHONY : src/pathplanners.cpp.i
+
+src/pathplanners.s: src/pathplanners.cpp.s
+
+.PHONY : src/pathplanners.s
+
+# target to generate assembly for a file
+src/pathplanners.cpp.s:
+	$(MAKE) -f CMakeFiles/planner.dir/build.make CMakeFiles/planner.dir/src/pathplanners.cpp.s
+.PHONY : src/pathplanners.cpp.s
 
 # Help Target
 help:
@@ -323,21 +323,21 @@ help:
 	@echo "... serial"
 	@echo "... controller"
 	@echo "... aprilvideointerface"
-	@echo "... Serial.o"
-	@echo "... Serial.i"
-	@echo "... Serial.s"
-	@echo "... aprilvideointerface.o"
-	@echo "... aprilvideointerface.i"
-	@echo "... aprilvideointerface.s"
-	@echo "... controllers.o"
-	@echo "... controllers.i"
-	@echo "... controllers.s"
 	@echo "... differentialDrive.o"
 	@echo "... differentialDrive.i"
 	@echo "... differentialDrive.s"
-	@echo "... pathplanners.o"
-	@echo "... pathplanners.i"
-	@echo "... pathplanners.s"
+	@echo "... src/Serial.o"
+	@echo "... src/Serial.i"
+	@echo "... src/Serial.s"
+	@echo "... src/aprilvideointerface.o"
+	@echo "... src/aprilvideointerface.i"
+	@echo "... src/aprilvideointerface.s"
+	@echo "... src/controllers.o"
+	@echo "... src/controllers.i"
+	@echo "... src/controllers.s"
+	@echo "... src/pathplanners.o"
+	@echo "... src/pathplanners.i"
+	@echo "... src/pathplanners.s"
 .PHONY : help
 
 
