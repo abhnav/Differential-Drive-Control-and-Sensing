@@ -5,3 +5,6 @@
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/serial.dir
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/controller.dir
 /home/super/Documents/DifferentialDrive/build/CMakeFiles/aprilvideointerface.dir
+/home/super/Documents/DifferentialDrive/build/sandbox/CMakeFiles/edit_cache.dir
+/home/super/Documents/DifferentialDrive/build/sandbox/CMakeFiles/rebuild_cache.dir
+/home/super/Documents/DifferentialDrive/build/sandbox/CMakeFiles/sandbox.dir

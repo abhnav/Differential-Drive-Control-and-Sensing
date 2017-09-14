@@ -32,5 +32,6 @@ int main(int argc, char **argv){
   Vector2f v(1,0);
   v = rot*v;
   cout<<v<<endl;
+  cout<<"what the fuk"<<endl;
   return 0;
 }

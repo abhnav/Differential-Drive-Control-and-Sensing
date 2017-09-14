@@ -13,6 +13,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.5.1/CMakeSystem.cmake"
   "CMakeFiles/feature_tests.c"
   "CMakeFiles/feature_tests.cxx"
+  "../sandbox/CMakeLists.txt"
   "/opt/ros/kinetic/share/OpenCV-3.1.0-dev/OpenCVConfig-version.cmake"
   "/opt/ros/kinetic/share/OpenCV-3.1.0-dev/OpenCVConfig.cmake"
   "/opt/ros/kinetic/share/OpenCV-3.1.0-dev/OpenCVModules-none.cmake"
@@ -111,6 +112,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/3.5.1/CMakeCCompiler.cmake"
   "CMakeFiles/3.5.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/CMakeDirectoryInformation.cmake"
+  "sandbox/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
@@ -120,4 +122,5 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/serial.dir/DependInfo.cmake"
   "CMakeFiles/controller.dir/DependInfo.cmake"
   "CMakeFiles/aprilvideointerface.dir/DependInfo.cmake"
+  "sandbox/CMakeFiles/sandbox.dir/DependInfo.cmake"
   )
