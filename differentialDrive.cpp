@@ -70,11 +70,12 @@ int main(int argc, char* argv[]) {
       path_planner.goal_id = tag_id_index_map[goal_id];
       path_planner.origin_id = tag_id_index_map[origin_id];
       path_planner.overlayGrid(testbed.detections,image_gray);
-      //path_planner.findshortest(testbed);
-      //path_planner.findCoverageGlobalNeighborPreference(testbed);
-      if(pose_id_index_map[robot_id]>=0){
-        //path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
-        path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
+      if(path_planner.origin_id>=0 && path_planner.robot_id>=0){
+        //path_planner.findCoverageGlobalNeighborPreference(testbed);
+        path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+        //path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
+        //if(path_planner.goal_id>=0)
+          //path_planner.findshortest(testbed);
       }
     }
 

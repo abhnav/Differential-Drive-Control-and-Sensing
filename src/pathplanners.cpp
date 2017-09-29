@@ -176,6 +176,7 @@ pair<int,int> PathPlannerGrid::setParentUsingOrientation(robot_pose &ps){
 }
 
 void PathPlannerGrid::addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed){
+  cout<<"adding cell "<<r<<" "<<c<<endl;
   int ax,ay;double bx,by;
   ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
   ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
@@ -257,11 +258,13 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
     temp_planner.start_grid_y = incumbent_cells[0].second;
     temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
     temp_planner.goal_grid_y = incumbent_cells[ic_no-1].second;
+    cout<<"shortest path started"<<endl;
     temp_planner.findshortest(testbed);
-    for(int i = 0;i<temp_planner.path_points.size();i++){
+    cout<<"shortest path ended"<<endl;
+    for(int i = temp_planner.path_points.size()-1;i>=0;i--){
       addPoint(total_points,temp_planner.pixel_path_points[i].first,temp_planner.pixel_path_points[i].second,temp_planner.path_points[i].x, temp_planner.path_points[i].y);
     }
-    //for(int i = 1;i<ic_no;i++){
+    //for(int i = 1;i<ic_no;i++){//simply revisit the previous cells till reach the branch
       //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
       //addGridCellToPath(cellrow,cellcol,testbed);
     //}
