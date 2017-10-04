@@ -34,6 +34,7 @@ class PathPlannerGrid{
     }
 
     void initializeLocalPreferenceMatrix();
+    double distance(double x1,double y1,double x2,double y2);
     //invert visitable and non visitable cells
     void gridInversion(const PathPlannerGrid &planner);
     void addPoint(int ind,int px, int py, double x,double y);
@@ -55,7 +56,7 @@ class PathPlannerGrid{
     int getWallReference(int r,int c,int pr, int pc);
     void addBacktrackPointToStackAndPath(std::stack<std::pair<int,int> > &sk,std::vector<std::pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,std::pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed);
     void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
-    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps);
+    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance);
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed);
     void drawPath(cv::Mat &image);

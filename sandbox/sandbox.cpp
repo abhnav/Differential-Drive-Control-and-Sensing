@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
   cout << "Processing video" << endl;
   testbed.setupVideo();
   int frame = 0;
+  int first_iter = 1;
   double last_t = tic();
   const char *windowName = "What do you see?";
   cv::namedWindow(windowName,WINDOW_NORMAL);
@@ -30,7 +31,7 @@ int main(int argc, char* argv[]) {
   PathPlannerGrid path_planner(60,60,100);
   //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
-  PurePursuitController controller(40.0,2.0,14.5,80,80,128,false);
+  PurePursuitController controller(40.0,2.0,14.5,70,70,128,false);
 
   //make sure that lookahead always contain atleast the next path point
   //if not then the next point to the closest would automatically become target
@@ -45,8 +46,8 @@ int main(int argc, char* argv[]) {
     for(int i = 0;i<max_robots;i++)
       tag_id_index_map[i] = pose_id_index_map[i] = -1;
     robotCount = 0;
-    //testbed.m_cap >> image;
-    image = imread("tagimage.jpg");
+    testbed.m_cap >> image;
+    //image = imread("tagimage.jpg");
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
@@ -67,20 +68,30 @@ int main(int argc, char* argv[]) {
         pose_id_index_map[testbed.detections[i].id] = robotCount-1;
       }
     }
-    if(!path_planner.total_points){//no path algorithm ever run before, in incremental case, this helps to call the function for the first time
-      path_planner.robot_id = tag_id_index_map[robot_id];
-      path_planner.goal_id = tag_id_index_map[goal_id];
-      path_planner.origin_id = tag_id_index_map[origin_id];
-      path_planner.overlayGrid(testbed.detections,image_gray);
-      if(path_planner.origin_id>=0 && path_planner.robot_id>=0){
+    path_planner.robot_id = tag_id_index_map[robot_id];
+    path_planner.goal_id = tag_id_index_map[goal_id];
+    path_planner.origin_id = tag_id_index_map[origin_id];
+    if(path_planner.origin_id>=0 && path_planner.robot_id>=0){
+      if(first_iter){
+        first_iter = 0;
+        path_planner.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
+      }
+      path_planner.BSACoverageIncremental(testbed,robots[pose_id_index_map[robot_id]], 2.5);
+    }
+
+    //if(!path_planner.total_points){//no path algorithm ever run before
+      //path_planner.robot_id = tag_id_index_map[robot_id];
+      //path_planner.goal_id = tag_id_index_map[goal_id];
+      //path_planner.origin_id = tag_id_index_map[origin_id];
+      //path_planner.overlayGrid(testbed.detections,image_gray);
+      //if(path_planner.origin_id>=0 && path_planner.robot_id>=0){
         //path_planner.findCoverageGlobalNeighborPreference(testbed);
         //path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
         //path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
-        path_planner.BSACoverageIncremental(testbed,robots[pose_id_index_map[robot_id]]);
         //if(path_planner.goal_id>=0)
           //path_planner.findshortest(testbed);
-      }
-    }
+      //}
+    //}
 
     pair<int,int> wheel_velocities = controller.computeStimuli(robots[pose_id_index_map[robot_id]],path_planner.path_points);
     if(testbed.m_arduino){

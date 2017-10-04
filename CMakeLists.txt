@@ -10,6 +10,7 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories(${DifferentialDrive_SOURCE_DIR}/include)
 include_directories(${DifferentialDrive_SOURCE_DIR}/AprilTags/build/include/)
 include_directories(/usr/local/include/eigen3)
+include_directories(/usr/include/eigen3)
 link_directories(${DifferentialDrive_SOURCE_DIR}/AprilTags/build/lib/)
 #link_directories(${CMAKE_SOURCE_DIR}/build/)#for our own library objects, not required as cmake already knows
 add_library(serial SHARED ${DifferentialDrive_SOURCE_DIR}/src/Serial.cpp)

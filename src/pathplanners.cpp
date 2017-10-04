@@ -5,6 +5,10 @@ using namespace cv;
 using namespace std;
 using namespace Eigen;
 
+double PathPlannerGrid::distance(double x1,double y1,double x2,double y2){
+  return sqrt(pow(x1-x2,2) + pow(y1-y2,2));
+}
+
 //for the class PathPlannerGrid
 void PathPlannerGrid::initializeLocalPreferenceMatrix(){
   //moving globally right
@@ -59,7 +63,7 @@ void PathPlannerGrid::addPoint(int ind,int px, int py, double x,double y){
 }
 
 bool PathPlannerGrid::isEmpty(int r,int c){//criteria based on which to decide whether cell is empty
-  if(world_grid[r][c].blacks > world_grid[r][c].whites*0.2)//more than 20 percent
+  if(world_grid[r][c].blacks > world_grid[r][c].whites*0.2 || r>=rcells-1 || c>=ccells-1)//more than 20 percent
     return false;
   return true;
 }
@@ -277,7 +281,7 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   sk.push(pair<int,int>(ngr,ngc));
 }
 //each function call adds only the next spiral point in the path vector, which may occur after a return phase
-void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps){
+void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance){
 
   static int first_call = 1;
   static stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack
@@ -286,20 +290,18 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
   if(!first_call){
     if(!sk.empty()){
       pair<int,int> t = sk.top();
-      if(t.first != start_grid_x || t.second != start_grid_y){//ensure the robot is continuing from the last point
-        cout<<"the robot position is not what was expected"<<endl;
+      if(t.first != start_grid_x || t.second != start_grid_y || distance(ps.x,ps.y,path_points[total_points-1].x,path_points[total_points-1].y)>reach_distance){//ensure the robot is continuing from the last point, and that no further planning occurs until the robot reaches the required point
+        cout<<"the robot has not yet reached the old target"<<endl;
         return;
       }
     }
   }
   vector<pair<int,int> > incumbent_cells(rcells*ccells);
   int ic_no = 0;
-  total_points = 0;
-  path_points.clear();
-  pixel_path_points.clear();
 
   if(first_call){
     first_call = 0;
+    total_points = 0;
     sk.push(pair<int,int>(start_grid_x,start_grid_y));
     world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
     world_grid[start_grid_x][start_grid_y].steps = 1;//visited
@@ -308,7 +310,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
   }
   int ngr,ngc,wall;//neighbor row and column
 
-  while(!sk.empty()){
+  while(!sk.empty()){//when no other explorable path remains, the robot simply keeps updating the path vector with the same grid cell(path point)
     pair<int,int> t = sk.top();
     int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
     int ny = t.second-world_grid[t.first][t.second].parent.second+1;
@@ -340,8 +342,6 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     world_grid[next_below.first][next_below.second].parent = t;
     world_grid[next_below.first][next_below.second].wall_reference = 1;//since turning 180 degrees
   }
-  sk.push(pair<int,int>(start_grid_x,start_grid_y));//add the current position as the target position, no movement henceforth
-  //this helps to use vector empty condition to know whether to call the path planner or not
 }
 
 void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){

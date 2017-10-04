@@ -1,4 +1,4 @@
-#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
 
 #IncludeRegexScan: ^.*$
 
@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/super/Documents/DifferentialDrive/AprilTags/example/Serial.cpp
+/home/robot/Documents/DifferentialDrive/AprilTags/example/Serial.cpp
 fcntl.h
 -
 termios.h
@@ -20,13 +20,13 @@ sstream
 unistd.h
 -
 Serial.h
-/home/super/Documents/DifferentialDrive/AprilTags/example/Serial.h
+/home/robot/Documents/DifferentialDrive/AprilTags/example/Serial.h
 
-/home/super/Documents/DifferentialDrive/AprilTags/example/Serial.h
+/home/robot/Documents/DifferentialDrive/AprilTags/example/Serial.h
 string
 -
 
-/home/super/Documents/DifferentialDrive/AprilTags/example/imu.cpp
+/home/robot/Documents/DifferentialDrive/AprilTags/example/imu.cpp
 iostream
 -
 string
@@ -36,5 +36,5 @@ stdio.h
 math.h
 -
 Serial.h
-/home/super/Documents/DifferentialDrive/AprilTags/example/Serial.h
+/home/robot/Documents/DifferentialDrive/AprilTags/example/Serial.h
 
