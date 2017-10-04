@@ -276,6 +276,73 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   addGridCellToPath(ngr,ngc,testbed);
   sk.push(pair<int,int>(ngr,ngc));
 }
+//each function call adds only the next spiral point in the path vector, which may occur after a return phase
+void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps){
+
+  static int first_call = 1;
+  static stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack
+  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+    return;
+  if(!first_call){
+    if(!sk.empty()){
+      pair<int,int> t = sk.top();
+      if(t.first != start_grid_x || t.second != start_grid_y){//ensure the robot is continuing from the last point
+        cout<<"the robot position is not what was expected"<<endl;
+        return;
+      }
+    }
+  }
+  vector<pair<int,int> > incumbent_cells(rcells*ccells);
+  int ic_no = 0;
+  total_points = 0;
+  path_points.clear();
+  pixel_path_points.clear();
+
+  if(first_call){
+    first_call = 0;
+    sk.push(pair<int,int>(start_grid_x,start_grid_y));
+    world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+    world_grid[start_grid_x][start_grid_y].steps = 1;//visited
+    addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+    return;//added the first spiral point
+  }
+  int ngr,ngc,wall;//neighbor row and column
+
+  while(!sk.empty()){
+    pair<int,int> t = sk.top();
+    int nx = t.first-world_grid[t.first][t.second].parent.first+1;//add one to avoid negative index
+    int ny = t.second-world_grid[t.first][t.second].parent.second+1;
+    if((wall=world_grid[t.first][t.second].wall_reference)>=0){//if the current cell has a wall reference to consider
+      ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
+      if(!isBlocked(ngr,ngc)){
+        addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+        world_grid[ngr][ngc].wall_reference = -1;//to prevent wall exchange to right wall when following left wall
+        break;// a new spiral point has been added
+      }
+    }
+    bool empty_neighbor_found = false;
+    for(int i = 0;i<4;i++){
+      ngr = t.first+aj[nx][ny][i].first;
+      ngc = t.second+aj[nx][ny][i].second;
+      if(isBlocked(ngr,ngc))
+        continue;
+      empty_neighbor_found = true;
+      addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,ngr,ngc,t,testbed);
+      break;
+    }
+    if(empty_neighbor_found) break;//a new spiral point has been added
+    incumbent_cells[ic_no] = t;//add the point as a possible return phase point
+    ic_no++;
+    sk.pop();
+    if(sk.empty()) break;// the path vector would also be empty indicating end of explorable path
+    pair<int,int> next_below = sk.top();
+    //the lines below are obsolete(at first thought) since the shortest path is being calculated, so wall reference and parent are obsolete on already visited points
+    world_grid[next_below.first][next_below.second].parent = t;
+    world_grid[next_below.first][next_below.second].wall_reference = 1;//since turning 180 degrees
+  }
+  sk.push(pair<int,int>(start_grid_x,start_grid_y));//add the current position as the target position, no movement henceforth
+  //this helps to use vector empty condition to know whether to call the path planner or not
+}
 
 void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
   if(setRobotCellCoordinates(testbed.detections)<0)

@@ -1,7 +1,7 @@
 #include "aprilvideointerface.h"
 #include "pathplanners.h"
 #include "controllers.h"
-// For Arduino: locally defined serial port access class
+// For Arduino: serial port access class
 #include "Serial.h"
 using namespace std;
 using namespace cv;

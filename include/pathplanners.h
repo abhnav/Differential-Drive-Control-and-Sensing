@@ -55,6 +55,7 @@ class PathPlannerGrid{
     int getWallReference(int r,int c,int pr, int pc);
     void addBacktrackPointToStackAndPath(std::stack<std::pair<int,int> > &sk,std::vector<std::pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,std::pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed);
     void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
+    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps);
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed);
     void drawPath(cv::Mat &image);

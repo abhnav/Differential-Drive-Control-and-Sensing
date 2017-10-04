@@ -1,7 +1,8 @@
 #include "aprilvideointerface.h"
+#include <unistd.h>
 #include "pathplanners.h"
 #include "controllers.h"
-// For Arduino: locally defined serial port access class
+// For Arduino: serial port access class
 #include "Serial.h"
 using namespace std;
 using namespace cv;
@@ -26,7 +27,7 @@ int main(int argc, char* argv[]) {
     s_transmit.open("/dev/ttyUSB0",9600);
   cv::Mat image;
   cv::Mat image_gray;
-  PathPlannerGrid path_planner(60,60,150);
+  PathPlannerGrid path_planner(60,60,100);
   //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
   PurePursuitController controller(40.0,2.0,14.5,80,80,128,false);
@@ -40,12 +41,12 @@ int main(int argc, char* argv[]) {
   vector<robot_pose> robots(max_robots);
   vector<int> tag_id_index_map(max_robots);//tag id should also not go beyond max_robots
   vector<int> pose_id_index_map(max_robots);
-  image = imread("tagimage.jpg");
   while (true){
     for(int i = 0;i<max_robots;i++)
       tag_id_index_map[i] = pose_id_index_map[i] = -1;
     robotCount = 0;
     //testbed.m_cap >> image;
+    image = imread("tagimage.jpg");
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
@@ -66,15 +67,16 @@ int main(int argc, char* argv[]) {
         pose_id_index_map[testbed.detections[i].id] = robotCount-1;
       }
     }
-    if(!path_planner.total_points){//no path algorithm ever run before
+    if(!path_planner.total_points){//no path algorithm ever run before, in incremental case, this helps to call the function for the first time
       path_planner.robot_id = tag_id_index_map[robot_id];
       path_planner.goal_id = tag_id_index_map[goal_id];
       path_planner.origin_id = tag_id_index_map[origin_id];
       path_planner.overlayGrid(testbed.detections,image_gray);
       if(path_planner.origin_id>=0 && path_planner.robot_id>=0){
         //path_planner.findCoverageGlobalNeighborPreference(testbed);
-        path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
+        //path_planner.findCoverageLocalNeighborPreference(testbed,robots[pose_id_index_map[robot_id]]);
         //path_planner.BSACoverage(testbed,robots[pose_id_index_map[robot_id]]);
+        path_planner.BSACoverageIncremental(testbed,robots[pose_id_index_map[robot_id]]);
         //if(path_planner.goal_id>=0)
           //path_planner.findshortest(testbed);
       }
