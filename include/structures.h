@@ -33,4 +33,18 @@ struct nd{
     parent.first = parent.second = wall_reference = r_id = -1;
   }
 };
+struct bt{
+  //the bt point might not remain valid, so you must check coverage for next_p in world grid before using it
+  std::pair<int,int> parent;
+  std::pair<int,int> next_p;
+  std::stack<std::pair<int,int> > stack_state;
+  int manhattan_distance;//distance of robot from this point's parent(returning distance)
+  bool valid;
+  bt(){valid = true;}
+  bt(int pr,int pc, int r, int c, std::stack<std::pair<int,int> > sk){
+    parent.first = pr, parent.second = pc, next_p.first = r, next_p.second = c;
+    stack_state = sk;
+    valid = true;
+  }
+}
 #endif
