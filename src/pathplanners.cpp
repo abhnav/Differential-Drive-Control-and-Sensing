@@ -285,7 +285,6 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
 //each function call adds only the next spiral point in the path vector, which may occur after a return phase
 void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance){
   static int first_call = 1;
-  static stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack
   static vector<bt> bt_destinations;
   if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
     return;
@@ -386,7 +385,70 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
   addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,bt_destinations[mind].next_p.first,bt_destinations[mind].next_p.second,bt_destinations[mind].parent,testbed);
 }
 
-int backtrackSimulateBid(pair<int,int> target,)
+int backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
+  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
+    return;
+  if(sk.empty())//the robot is inactive
+    return 10000000;//it can't ever reach
+  stack<pair<int,int> > skc = sk;
+  vector<vector<nd> > world_gridc = world_grid;
+  int nx,ny,ngr,ngc,wall;//neighbor row and column
+  int step_distance = 0;
+  while(true){
+    pair<int,int> t = skc.top();
+    nx = t.first-world_gridc[t.first][t.second].parent.first+1;//add one to avoid negative index
+    ny = t.second-world_gridc[t.first][t.second].parent.second+1;
+    if((wall=world_gridc[t.first][t.second].wall_reference)>=0){
+      ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
+      if(!isBlocked(ngr,ngc)){
+        world_gridc[ngr][ngc].wall_reference = -1;
+        world_gridc[ngr][ngc].steps = 1;
+        world_gridc[ngr][ngc].parent = t;
+        world_gridc[ngr][ngc].r_id = robot_id;
+        skc.push(pair<int,int>(ngr,ngc));
+        step_distance++;
+        continue;
+      }
+    }
+    bool empty_neighbor_found = false;
+    for(int i = 0;i<4;i++){
+      ngr = t.first+aj[nx][ny][i].first;
+      ngc = t.second+aj[nx][ny][i].second;
+      if(isBlocked(ngr,ngc))
+        continue;
+      empty_neighbor_found = true;
+      world_gridc[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_gridc[t.first][t.second].parent.first, world_gridc[t.first][t.second].parent.second);
+      world_gridc[ngr][ngc].steps = 1;
+      world_gridc[ngr][ngc].parent = t;
+      world_gridc[ngr][ngc].r_id = robot_id;
+      skc.push(pair<int,int>(ngr,ngc));
+      step_distance++;
+      break;
+    }
+    if(empty_neighbor_found) continue;
+    break;//if control reaches here, it means that the spiral phase simulation is complete
+  }
+  //check whether the target is approachable from current robot
+  for(int i = 0;i<4;i++){
+    ngr = target.first+aj[0][1].first;//aj[0][1] gives the global preference iteration of the neighbors
+    ngc = target.second+aj[0][1].second;
+    if(!isBlocked(ngr,ngc))//target is not approachable from [ngr][ngc]
+      continue;
+    if(world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
+      PathPlannerGrid temp_planner;
+      //rectify the below statement
+      temp_planner.gridInversion(*this, robot_id);
+      temp_planner.start_grid_x = skc.top().first;
+      temp_planner.start_grid_y = skc.top().second;
+      temp_planner.goal_grid_x = ngr;
+      temp_planner.goal_grid_y = ngc;
+      temp_planner.findshortest(testbed);
+      step_distance += temp_planner.total_points;
+      return step_distance;
+    }
+  }
+  return 10000000;//the robot can't return to given target
+}
 
 void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
   if(setRobotCellCoordinates(testbed.detections)<0)

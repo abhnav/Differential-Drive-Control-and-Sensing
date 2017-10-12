@@ -25,6 +25,7 @@ class PathPlannerGrid{
     std::vector<std::vector<nd> > world_grid;//grid size is assumed to be manueveurable by the robot
     //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
     std::pair<int,int> aj[3][3][4];
+    stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack, should be unique for every instance, used primarily by the incremental bsa
 
     PathPlannerGrid(int csx,int csy,int th):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1){
       initializeLocalPreferenceMatrix();
