@@ -22,7 +22,7 @@ class PathPlannerGrid{
     int start_grid_x,start_grid_y;
     int goal_grid_x, goal_grid_y;
     int rcells, ccells;
-    std::vector<std::vector<nd> > world_grid;//grid size is assumed to be manueveurable by the robot
+    std::vector<std::vector<nd> > &world_grid;//grid size is assumed to be manueveurable by the robot
     //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
     std::pair<int,int> aj[3][3][4];
     stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack, should be unique for every instance, used primarily by the incremental bsa
@@ -34,8 +34,9 @@ class PathPlannerGrid{
       initializeLocalPreferenceMatrix();
     }
 
-    void initializeLocalPreferenceMatrix();
     double distance(double x1,double y1,double x2,double y2);
+    void shareMap(const PathPlannerGrid &planner);
+    void initializeLocalPreferenceMatrix();
     //invert visitable and non visitable cells
     void gridInversion(const PathPlannerGrid &planner);
     void addPoint(int ind,int px, int py, double x,double y);
@@ -57,7 +58,8 @@ class PathPlannerGrid{
     int getWallReference(int r,int c,int pr, int pc);
     void addBacktrackPointToStackAndPath(std::stack<std::pair<int,int> > &sk,std::vector<std::pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,std::pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed);
     void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
-    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance);
+    int backtrackSimulateBid(std::pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
+    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps,double reach_distance,vector<PathPlannerGrid> &bots);
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed);
     void drawPath(cv::Mat &image);

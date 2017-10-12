@@ -1,4 +1,5 @@
 #include "pathplanners.h"
+#include <algorithms>
 #include <cmath>
 #include <queue>
 using namespace cv;
@@ -33,6 +34,14 @@ void PathPlannerGrid::initializeLocalPreferenceMatrix(){
   aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
 }
 
+//all planners with same map must have same grid cell size in pixels
+//you should not call initialize, overlay, inversion grid on a shared map, or call if you 
+//know what you are doing
+void shareMap(const PathPlannerGrid &planner){
+    rcells = planner.rcells;
+    ccells = planner.ccells;
+    world_grid = planner.world_grid;
+}
 void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner,int rid){//invert visitable and non visitable cells for the given rid
   rcells = planner.rcells;
   ccells = planner.ccells;
@@ -282,8 +291,76 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   sk.push(pair<int,int>(ngr,ngc));
 }
 
+int backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
+  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
+    return 10000000;
+  if(sk.empty())//the robot is inactive
+    return 10000000;//it can't ever reach
+  stack<pair<int,int> > skc = sk;
+  vector<vector<nd> > world_gridc = world_grid;
+  PathPlannerGrid plannerc;
+  plannerc.rcells = rcells;
+  plannerc.ccells = ccells;
+  plannerc.world_grid = world_gridc;//world_gridc won't be copied since world_grid is a reference variable
+  int nx,ny,ngr,ngc,wall;//neighbor row and column
+  int step_distance = 0;
+  while(true){
+    pair<int,int> t = skc.top();
+    nx = t.first-world_gridc[t.first][t.second].parent.first+1;//add one to avoid negative index
+    ny = t.second-world_gridc[t.first][t.second].parent.second+1;
+    if((wall=world_gridc[t.first][t.second].wall_reference)>=0){
+      ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
+      if(!isBlocked(ngr,ngc)){
+        world_gridc[ngr][ngc].wall_reference = -1;
+        world_gridc[ngr][ngc].steps = 1;
+        world_gridc[ngr][ngc].parent = t;
+        world_gridc[ngr][ngc].r_id = robot_id;
+        skc.push(pair<int,int>(ngr,ngc));
+        step_distance++;
+        continue;
+      }
+    }
+    bool empty_neighbor_found = false;
+    for(int i = 0;i<4;i++){
+      ngr = t.first+aj[nx][ny][i].first;
+      ngc = t.second+aj[nx][ny][i].second;
+      if(isBlocked(ngr,ngc))
+        continue;
+      empty_neighbor_found = true;
+      world_gridc[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_gridc[t.first][t.second].parent.first, world_gridc[t.first][t.second].parent.second);
+      world_gridc[ngr][ngc].steps = 1;
+      world_gridc[ngr][ngc].parent = t;
+      world_gridc[ngr][ngc].r_id = robot_id;
+      skc.push(pair<int,int>(ngr,ngc));
+      step_distance++;
+      break;
+    }
+    if(empty_neighbor_found) continue;
+    break;//if control reaches here, it means that the spiral phase simulation is complete
+  }
+  //check whether the target is approachable from current robot
+  for(int i = 0;i<4;i++){
+    ngr = target.first+aj[0][1].first;//aj[0][1] gives the global preference iteration of the neighbors
+    ngc = target.second+aj[0][1].second;
+    if(!isBlocked(ngr,ngc))//target is not approachable from [ngr][ngc]
+      continue;
+    if(world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
+      PathPlannerGrid temp_planner;
+      //rectify the below statement
+      temp_planner.gridInversion(plannerc, robot_id);
+      temp_planner.start_grid_x = skc.top().first;
+      temp_planner.start_grid_y = skc.top().second;
+      temp_planner.goal_grid_x = ngr;
+      temp_planner.goal_grid_y = ngc;
+      temp_planner.findshortest(testbed);
+      step_distance += temp_planner.total_points;
+      return step_distance;
+    }
+  }
+  return 10000000;//the robot can't return to given target
+}
 //each function call adds only the next spiral point in the path vector, which may occur after a return phase
-void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance){
+void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
   static int first_call = 1;
   static vector<bt> bt_destinations;
   if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
@@ -357,8 +434,6 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     world_grid[next_below.first][next_below.second].wall_reference = 1;//since turning 180 degrees
   }
   if(ic_no == 0) return;//no further bt processing
-  int mind = -1;
-  int mdis = INT_MAX;
   for(int i = 0;i<bt_destinations.size();i++){
     if(!bt_destinations[i].valid || world_grid[bt_destinations[i].next_p.first][bt_destinations[i].next_p.second].steps>0){//the bt is no longer uncovered
       bt_destinations[i].valid = false;//the point should no longer be considered in future
@@ -372,83 +447,36 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     temp_planner.goal_grid_y = bt_destinations[i].parent.second;
     temp_planner.findshortest(testbed);
     bt_destinations[i].manhattan_distance = temp_planner.total_points;
-    if(temp_planner.total_points>=0 && temp_planner.total_points<mdis){
-      mdis = temp_planner.total_points;
-      mind = i;
-    }
   }
-  if(mind<0)//no bt point left
-    return;
-  sk = bt_destinations[mind].stack_state;
-  //below line redundant since the first element is bound to be current position of robot
-  //incumbent_cells[0] = pair<int,int>(start_grid_x,start_grid_y);
-  addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,bt_destinations[mind].next_p.first,bt_destinations[mind].next_p.second,bt_destinations[mind].parent,testbed);
-}
-
-int backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
-    return;
-  if(sk.empty())//the robot is inactive
-    return 10000000;//it can't ever reach
-  stack<pair<int,int> > skc = sk;
-  vector<vector<nd> > world_gridc = world_grid;
-  int nx,ny,ngr,ngc,wall;//neighbor row and column
-  int step_distance = 0;
-  while(true){
-    pair<int,int> t = skc.top();
-    nx = t.first-world_gridc[t.first][t.second].parent.first+1;//add one to avoid negative index
-    ny = t.second-world_gridc[t.first][t.second].parent.second+1;
-    if((wall=world_gridc[t.first][t.second].wall_reference)>=0){
-      ngr = t.first+aj[nx][ny][wall].first, ngc = t.second+aj[nx][ny][wall].second;
-      if(!isBlocked(ngr,ngc)){
-        world_gridc[ngr][ngc].wall_reference = -1;
-        world_gridc[ngr][ngc].steps = 1;
-        world_gridc[ngr][ngc].parent = t;
-        world_gridc[ngr][ngc].r_id = robot_id;
-        skc.push(pair<int,int>(ngr,ngc));
-        step_distance++;
-        continue;
-      }
+  sort(bt_destinations.begin(),bt_destinations.end(),[](const bt &a, const bt &b) -> bool{
+      return a.manhattan_distance<b.manhattan_distance;
+      });
+  int it,mind = 10000000;
+  bool valid_found = false;
+  for(it = 0;it<bt_destinations.size();it++){
+    if(!bt_destinations[it].valid || bt_destinations[it].manhattan_distance<0)
+      continue;
+    if(it<mind) mind = it;//closest valid backtracking point
+    int i;
+    for(i = 0;i<bots.size();i++){
+      //all planners must share the same map
+      int tp = bots[i].backtrackSimulateBid(bt_destinations[it].next_p,testbed);
+      if(tp<bt_destinations[it].manhattan_distance)//a closer bot is available
+        break;
     }
-    bool empty_neighbor_found = false;
-    for(int i = 0;i<4;i++){
-      ngr = t.first+aj[nx][ny][i].first;
-      ngc = t.second+aj[nx][ny][i].second;
-      if(isBlocked(ngr,ngc))
-        continue;
-      empty_neighbor_found = true;
-      world_gridc[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_gridc[t.first][t.second].parent.first, world_gridc[t.first][t.second].parent.second);
-      world_gridc[ngr][ngc].steps = 1;
-      world_gridc[ngr][ngc].parent = t;
-      world_gridc[ngr][ngc].r_id = robot_id;
-      skc.push(pair<int,int>(ngr,ngc));
-      step_distance++;
+    if(i == bots.size()){
+      valid_found = true;
       break;
     }
-    if(empty_neighbor_found) continue;
-    break;//if control reaches here, it means that the spiral phase simulation is complete
   }
-  //check whether the target is approachable from current robot
-  for(int i = 0;i<4;i++){
-    ngr = target.first+aj[0][1].first;//aj[0][1] gives the global preference iteration of the neighbors
-    ngc = target.second+aj[0][1].second;
-    if(!isBlocked(ngr,ngc))//target is not approachable from [ngr][ngc]
-      continue;
-    if(world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
-      PathPlannerGrid temp_planner;
-      //rectify the below statement
-      temp_planner.gridInversion(*this, robot_id);
-      temp_planner.start_grid_x = skc.top().first;
-      temp_planner.start_grid_y = skc.top().second;
-      temp_planner.goal_grid_x = ngr;
-      temp_planner.goal_grid_y = ngc;
-      temp_planner.findshortest(testbed);
-      step_distance += temp_planner.total_points;
-      return step_distance;
-    }
-  }
-  return 10000000;//the robot can't return to given target
+  if(!valid_found && mind == 10000000)//no bt point left
+    return;
+  if(!valid_found && mind != 10000000)//no point exists for which the given robot is the closest
+    it = mind;
+  sk = bt_destinations[it].stack_state;
+  addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,bt_destinations[it].next_p.first,bt_destinations[it].next_p.second,bt_destinations[it].parent,testbed);
 }
+
 
 void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
   if(setRobotCellCoordinates(testbed.detections)<0)
