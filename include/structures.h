@@ -1,6 +1,7 @@
 #ifndef STRUCT_H
 #define STRUCT_H
 #include <utility>
+#include <stack>
 #ifndef PI
 const double PI = 3.14159265358979323846;
 #endif
@@ -46,5 +47,5 @@ struct bt{
     stack_state = sk;
     valid = true;
   }
-}
+};
 #endif

@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 // OpenCV library for easy access to USB camera and drawing of images
 #include "opencv2/opencv.hpp"
+#include "opencv2/core.hpp"
 // utility function to provide current system time (used below in
 // determining frame rate at which images are being processed)
 #include "AprilTags/TagDetector.h"

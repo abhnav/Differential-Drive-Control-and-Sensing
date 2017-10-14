@@ -21,3 +21,6 @@ Don't forget to calibrate the camera using calibration sample program given in t
 the calibration and autofocus don't matter much. The accuracy remains the same. Can use as it is
 
 let's call (1,0,0) as x_pos and (0,1,0) as y_pos and (0,0,0) as origin. We find their transformation using the pnp matrix. we find the vector between x_pos and origin, and y_pos and origin to find the new x axis and y axis vectors. Then for every new april tag, we do the same as above, but we project the new coordinates along the x and y axises by taking their projections(dot product). And since the points are on the same plane, the new coordinates are bound to be completely represented by these two projections.
+you have to initialize a static class variable outside class body and not inside some function or constructor. It should be initialized like you define a function of a class
+Only static const variables are allowed to be initialized in class body
+reference need to be initialized to a memory location before using them as regular pointers(using assignment). Using assignment on uninitialized reference variables throws error

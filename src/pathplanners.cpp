@@ -1,10 +1,13 @@
 #include "pathplanners.h"
-#include <algorithms>
+#include <algorithm>
 #include <cmath>
 #include <queue>
 using namespace cv;
 using namespace std;
 using namespace Eigen;
+
+//static members have to be initialized outside class body
+RNG PathPlannerGrid::rng = RNG(12345);
 
 double PathPlannerGrid::distance(double x1,double y1,double x2,double y2){
   return sqrt(pow(x1-x2,2) + pow(y1-y2,2));
@@ -37,7 +40,7 @@ void PathPlannerGrid::initializeLocalPreferenceMatrix(){
 //all planners with same map must have same grid cell size in pixels
 //you should not call initialize, overlay, inversion grid on a shared map, or call if you 
 //know what you are doing
-void shareMap(const PathPlannerGrid &planner){
+void PathPlannerGrid::shareMap(const PathPlannerGrid &planner){
     rcells = planner.rcells;
     ccells = planner.ccells;
     world_grid = planner.world_grid;
@@ -72,9 +75,19 @@ void PathPlannerGrid::addPoint(int ind,int px, int py, double x,double y){
 }
 
 bool PathPlannerGrid::isEmpty(int r,int c){//criteria based on which to decide whether cell is empty
-  if(world_grid[r][c].blacks > world_grid[r][c].whites*0.2 || r>=rcells-1 || c>=ccells-1)//more than 20 percent
+  if(r<0 || c<0 || r>=rcells-1 || c>=ccells-1 || world_grid[r][c].blacks > world_grid[r][c].whites*0.2)//more than 20 percent
     return false;
   return true;
+}
+//everyone except origin tag is my friend
+bool PathPlannerGrid::isFellowAgent(int x,int y,vector<AprilTags::TagDetection> &detections){
+  for(int i = 0;i<detections.size();i++){
+    if(i == origin_id)
+      continue;
+    if(pixelIsInsideTag(x,y,detections,i))
+      return true;
+  }
+  return false;
 }
 
 bool PathPlannerGrid::pixelIsInsideTag(int x,int y,vector<AprilTags::TagDetection> &detections,int ind){
@@ -90,6 +103,7 @@ bool PathPlannerGrid::pixelIsInsideTag(int x,int y,vector<AprilTags::TagDetectio
 }
 //note the different use of r,c and x,y in the context of matrix and image respectively
 //check for obstacles but excludes the black pixels obtained from apriltags
+//to use this function to check if robot is in frame, you must set start_grid_x, y to -1 before processing image
 int PathPlannerGrid::setRobotCellCoordinates(vector<AprilTags::TagDetection> &detections){
   if(robot_id < 0){
     if(start_grid_x == start_grid_y && start_grid_x == -1){
@@ -166,7 +180,7 @@ void PathPlannerGrid::overlayGrid(vector<AprilTags::TagDetection> &detections,Ma
     for(int j = 0;j<c;j++){
       int gr = i/cell_size_y, gc = j/cell_size_x;
       world_grid[gr][gc].tot++;
-      if(grayImage.at<uint8_t>(i,j) == 255 || pixelIsInsideTag(j+1,i+1,detections,robot_id) || pixelIsInsideTag(j+1,i+1,detections,goal_id) || pixelIsInsideTag(j+1,i+1,detections,origin_id)){
+      if(grayImage.at<uint8_t>(i,j) == 255 || isFellowAgent(j+1,i+1,detections)){
         world_grid[gr][gc].whites++;
         grayImage.at<uint8_t>(i,j) = 255;
       }
@@ -198,7 +212,7 @@ void PathPlannerGrid::addGridCellToPath(int r,int c,AprilInterfaceAndVideoCaptur
 }
 
 bool PathPlannerGrid::isBlocked(int ngr, int ngc){
-  if(ngr<0 || ngr>=rcells || ngc<0 || ngc>=ccells || !isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
+  if(!isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
     return true;
   return false;
 }
@@ -238,7 +252,7 @@ void PathPlannerGrid::findshortest(AprilInterfaceAndVideoCapture &testbed){
       break;
     for(int i = 0;i<4;i++){
       ngr = t.first+aj[i].first, ngc = t.second+aj[i].second;
-      if(ngr>=rcells || ngr<0 || ngc>=ccells || ngc<0 || world_grid[ngr][ngc].steps>0 || !isEmpty(ngr,ngc))
+      if(world_grid[ngr][ngc].steps>0 || !isEmpty(ngr,ngc))
         continue;
       world_grid[ngr][ngc].parent.first = t.first;
       world_grid[ngr][ngc].parent.second = t.second;
@@ -265,7 +279,8 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   if(ic_no){
     incumbent_cells[ic_no] = t; 
     ic_no++;
-    PathPlannerGrid temp_planner;
+    vector<vector<nd> > tp;//a temporary map
+    PathPlannerGrid temp_planner(tp);
     temp_planner.gridInversion(*this, robot_id);
     temp_planner.start_grid_x = incumbent_cells[0].first;
     temp_planner.start_grid_y = incumbent_cells[0].second;
@@ -291,14 +306,15 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   sk.push(pair<int,int>(ngr,ngc));
 }
 
-int backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
+int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
   if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
     return 10000000;
   if(sk.empty())//the robot is inactive
     return 10000000;//it can't ever reach
   stack<pair<int,int> > skc = sk;
-  vector<vector<nd> > world_gridc = world_grid;
-  PathPlannerGrid plannerc;
+  vector<vector<nd> > world_gridc = world_grid;//copy current grid
+  vector<vector<nd> > tp;//a temporary map
+  PathPlannerGrid plannerc(tp);
   plannerc.rcells = rcells;
   plannerc.ccells = ccells;
   plannerc.world_grid = world_gridc;//world_gridc won't be copied since world_grid is a reference variable
@@ -340,13 +356,11 @@ int backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &tes
   }
   //check whether the target is approachable from current robot
   for(int i = 0;i<4;i++){
-    ngr = target.first+aj[0][1].first;//aj[0][1] gives the global preference iteration of the neighbors
-    ngc = target.second+aj[0][1].second;
-    if(!isBlocked(ngr,ngc))//target is not approachable from [ngr][ngc]
-      continue;
-    if(world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
-      PathPlannerGrid temp_planner;
-      //rectify the below statement
+    ngr = target.first+aj[0][1][i].first;//aj[0][1] gives the global preference iteration of the neighbors
+    ngc = target.second+aj[0][1][i].second;
+    if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
+      vector<vector<nd> > tp;//a temporary map
+      PathPlannerGrid temp_planner(tp);
       temp_planner.gridInversion(plannerc, robot_id);
       temp_planner.start_grid_x = skc.top().first;
       temp_planner.start_grid_y = skc.top().second;
@@ -417,7 +431,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
       else{
         int i;
         for(i = 0;i<bt_destinations.size();i++)
-          if(bt_destinations[i].next_p.first == ngr && bt_destinations[i].next_p.second = ngc)//the point was already added before
+          if(bt_destinations[i].next_p.first == ngr && bt_destinations[i].next_p.second == ngc)//the point was already added before
             break;
         if(i == bt_destinations.size())//this is new point
           bt_destinations.push_back(bt(t.first,t.second,ngr,ngc,sk));
@@ -439,14 +453,15 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
       bt_destinations[i].valid = false;//the point should no longer be considered in future
       continue;
     }
-    PathPlannerGrid temp_planner;
+    vector<vector<nd> > tp;//a temporary map
+    PathPlannerGrid temp_planner(tp);
     temp_planner.gridInversion(*this, robot_id);
     temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
     temp_planner.start_grid_y = start_grid_y;
     temp_planner.goal_grid_x = bt_destinations[i].parent.first;
     temp_planner.goal_grid_y = bt_destinations[i].parent.second;
     temp_planner.findshortest(testbed);
-    bt_destinations[i].manhattan_distance = temp_planner.total_points;
+    bt_destinations[i].manhattan_distance = temp_planner.total_points;//-1 if no path found
   }
   sort(bt_destinations.begin(),bt_destinations.end(),[](const bt &a, const bt &b) -> bool{
       return a.manhattan_distance<b.manhattan_distance;
@@ -459,8 +474,10 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     if(it<mind) mind = it;//closest valid backtracking point
     int i;
     for(i = 0;i<bots.size();i++){
+      if(bots[i].robot_id == origin_id)//the tag is actually the origin
+        continue;
       //all planners must share the same map
-      int tp = bots[i].backtrackSimulateBid(bt_destinations[it].next_p,testbed);
+      int tp = bots[i].backtrackSimulateBid(bt_destinations[it].next_p,testbed);// returns 10000000 if no path
       if(tp<bt_destinations[it].manhattan_distance)//a closer bot is available
         break;
     }
@@ -473,6 +490,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     return;
   if(!valid_found && mind != 10000000)//no point exists for which the given robot is the closest
     it = mind;
+  //else it stores the index of the next bt point
   sk = bt_destinations[it].stack_state;
   addBacktrackPointToStackAndPath(sk,incumbent_cells,ic_no,bt_destinations[it].next_p.first,bt_destinations[it].next_p.second,bt_destinations[it].parent,testbed);
 }
@@ -595,7 +613,7 @@ void PathPlannerGrid::findCoverageGlobalNeighborPreference(AprilInterfaceAndVide
 }
 void PathPlannerGrid::drawPath(Mat &image){
   for(int i = 0;i<total_points-1;i++){
-    line(image,Point(pixel_path_points[i].first,pixel_path_points[i].second),Point(pixel_path_points[i+1].first,pixel_path_points[i+1].second),Scalar(0,0,255),2);
+    line(image,Point(pixel_path_points[i].first,pixel_path_points[i].second),Point(pixel_path_points[i+1].first,pixel_path_points[i+1].second),path_color,2);
   }
 }
 

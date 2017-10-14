@@ -20,6 +20,7 @@ class PurePursuitController{
     PurePursuitController(double a,double b,double c, int d,int e,int f,bool g):look_ahead_distance(a),reach_radius(b),axle_length(c),linear_velocity(d),inplace_turn_velocity(e),max_velocity(f),next_point_by_pursuit(g){
       calculateMinimumTurnRadius();
     }
+    PurePursuitController(){ }//dummy constructor
     double distance(double x1,double y1,double x2,double y2);
     int findNextPointByPursuit(robot_pose &rp,std::vector<pt> &path);
     int findNextPointByPathIndex(robot_pose &rp, std::vector<pt> &path);
