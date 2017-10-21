@@ -7,8 +7,7 @@
 using namespace std;
 using namespace cv;
 
-class bot_config{
-  public:
+struct bot_config{
   PathPlannerGrid plan;
   PurePursuitController control;//constructor called, thus must have a default constructor with no arguments
   int id;
@@ -54,7 +53,7 @@ int main(int argc, char* argv[]) {
   //PathPlannerUser path_planner(&testbed);
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
   int robotCount;
-  int max_robots = 10;
+  int max_robots = 3;
   int origin_id = 0;//always 0
   //tag id should also not go beyond max_robots
   vector<vector<nd> > tp;//a map that would be shared among all
@@ -67,8 +66,8 @@ int main(int argc, char* argv[]) {
       bots[i].id = i;//0 is saved for origin
     }
     robotCount = 0;
-    testbed.m_cap >> image;
-    //image = imread("tagimage.jpg");
+    //testbed.m_cap >> image;
+    image = imread("tagimage.jpg");
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
