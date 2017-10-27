@@ -24,3 +24,7 @@ let's call (1,0,0) as x_pos and (0,1,0) as y_pos and (0,0,0) as origin. We find 
 you have to initialize a static class variable outside class body and not inside some function or constructor. It should be initialized like you define a function of a class
 Only static const variables are allowed to be initialized in class body
 reference need to be initialized to a memory location before using them as regular pointers(using assignment). Using assignment on uninitialized reference variables throws error
+when you make a static function variable, it is shared among all instances as well like a class static variable
+always start the program with gdb
+have small testing programs to test proper working condition of the equipment like the zigbees, the velocity commands for testing etc
+having a log file for the execution run helps

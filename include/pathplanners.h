@@ -23,19 +23,26 @@ class PathPlannerGrid{
     int total_points;
     int start_grid_x,start_grid_y;
     int goal_grid_x, goal_grid_y;
+    //when sharing a map, make sure to share the below two values explicitly in your code, as sharing only the reference to map is not enough
     int rcells, ccells;
     std::vector<std::vector<nd> > &world_grid;//grid size is assumed to be manueveurable by the robot
     //the following matrix is used to encode local preference based on current place and parent place, one is added to avoid negative array index
     std::pair<int,int> aj[3][3][4];
     stack<pair<int,int> > sk;//stack is needed to remember all the previous points visited and backtrack, should be unique for every instance, used primarily by the incremental bsa
+    
+    //below two are used exclusively for incrementalbsa function, don't use for any other purpose
+    int first_call;
+    vector<bt> bt_destinations;
 
     PathPlannerGrid(int csx,int csy,int th,std::vector<std::vector<nd> > &wg):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1),world_grid(wg){
       initializeLocalPreferenceMatrix();
       path_color = cv::Scalar(rng.uniform(0,255),rng.uniform(0,255),rng.uniform(0,255));
+      first_call = 1;
     }
     PathPlannerGrid(std::vector<std::vector<nd> > &wg):total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1),world_grid(wg){
       initializeLocalPreferenceMatrix();
       path_color = cv::Scalar(rng.uniform(0,255),rng.uniform(0,255),rng.uniform(0,255));
+      first_call = 1;
     }
     PathPlannerGrid& operator=(const PathPlannerGrid& pt){
       path_color = pt.path_color;
@@ -54,6 +61,8 @@ class PathPlannerGrid{
       world_grid = pt.world_grid;
       //no need to copy aj as all are the same
       sk = pt.sk;
+      first_call = pt.first_call;
+      bt_destinations = pt.bt_destinations;
       return *this;
     }
     double distance(double x1,double y1,double x2,double y2);

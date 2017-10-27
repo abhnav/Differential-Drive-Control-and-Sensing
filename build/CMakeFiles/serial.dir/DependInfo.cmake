@@ -4,14 +4,14 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/super/Documents/DifferentialDrive/src/Serial.cpp" "/home/super/Documents/DifferentialDrive/build/CMakeFiles/serial.dir/src/Serial.cpp.o"
+  "/home/robot/Documents/DifferentialDrive/src/Serial.cpp" "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/serial.dir/src/Serial.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "/opt/ros/kinetic/include/opencv-3.1.0-dev/opencv"
-  "/opt/ros/kinetic/include/opencv-3.1.0-dev"
+  "/opt/ros/indigo/include/opencv-3.1.0-dev/opencv"
+  "/opt/ros/indigo/include/opencv-3.1.0-dev"
   "../include"
   "../AprilTags/build/include"
   "/usr/local/include/eigen3"

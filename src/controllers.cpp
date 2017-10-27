@@ -38,7 +38,6 @@ int PurePursuitController::findNextPointByPursuit(robot_pose &rp,vector<pt> &pat
 }
 
 int PurePursuitController::findNextPointByPathIndex(robot_pose &rp, vector<pt> &path){
-  static int next_index = 0;
   if(next_index == path.size())
     return next_index;
   double dis = distance(rp.x,rp.y,path[next_index].x, path[next_index].y);

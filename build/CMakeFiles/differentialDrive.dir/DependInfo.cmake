@@ -4,14 +4,14 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/super/Documents/DifferentialDrive/differentialDrive.cpp" "/home/super/Documents/DifferentialDrive/build/CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o"
+  "/home/robot/Documents/DifferentialDrive/differentialDrive.cpp" "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/differentialDrive.dir/differentialDrive.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "/opt/ros/kinetic/include/opencv-3.1.0-dev/opencv"
-  "/opt/ros/kinetic/include/opencv-3.1.0-dev"
+  "/opt/ros/indigo/include/opencv-3.1.0-dev/opencv"
+  "/opt/ros/indigo/include/opencv-3.1.0-dev"
   "../include"
   "../AprilTags/build/include"
   "/usr/local/include/eigen3"
@@ -20,10 +20,10 @@ set(CMAKE_CXX_TARGET_INCLUDE_PATH
 
 # Targets to which this target links.
 set(CMAKE_TARGET_LINKED_INFO_FILES
-  "/home/super/Documents/DifferentialDrive/build/CMakeFiles/aprilvideointerface.dir/DependInfo.cmake"
-  "/home/super/Documents/DifferentialDrive/build/CMakeFiles/serial.dir/DependInfo.cmake"
-  "/home/super/Documents/DifferentialDrive/build/CMakeFiles/planner.dir/DependInfo.cmake"
-  "/home/super/Documents/DifferentialDrive/build/CMakeFiles/controller.dir/DependInfo.cmake"
+  "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/aprilvideointerface.dir/DependInfo.cmake"
+  "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/serial.dir/DependInfo.cmake"
+  "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/planner.dir/DependInfo.cmake"
+  "/home/robot/Documents/DifferentialDrive/build/CMakeFiles/controller.dir/DependInfo.cmake"
   )
 
 # Fortran module output directory.

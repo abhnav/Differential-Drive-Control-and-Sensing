@@ -1,1 +1,1 @@
-/usr/bin/c++  -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libaprilvideointerface.so -o lib/libaprilvideointerface.so CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o  -L/home/super/Documents/DifferentialDrive/AprilTags/build/lib 
+/usr/bin/c++ -fPIC -g  -shared -Wl,-soname,libaprilvideointerface.so -o lib/libaprilvideointerface.so CMakeFiles/aprilvideointerface.dir/src/aprilvideointerface.cpp.o  -L/home/robot/Documents/DifferentialDrive/AprilTags/build/lib 

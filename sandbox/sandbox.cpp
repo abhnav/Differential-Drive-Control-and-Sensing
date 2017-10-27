@@ -41,9 +41,16 @@ int main(int argc, char* argv[]) {
   double last_t = tic();
   const char *windowName = "What do you see?";
   cv::namedWindow(windowName,WINDOW_NORMAL);
-  Serial s_transmit;
-  if(testbed.m_arduino)
-    s_transmit.open("/dev/ttyUSB0",9600);
+  vector<Serial> s_transmit(2);
+  ostringstream sout;
+  if(testbed.m_arduino){
+    for(int i = 0;i<s_transmit.size();i++){
+      sout.str("");
+      sout.clear();
+      sout<<"/dev/ttyUSB"<<i;
+      s_transmit[i].open(sout.str(),9600);
+    }
+  }
   cv::Mat image;
   cv::Mat image_gray;
   //make sure that lookahead always contain atleast the next path point
@@ -66,17 +73,20 @@ int main(int argc, char* argv[]) {
       bots[i].id = i;//0 is saved for origin
     }
     robotCount = 0;
-    //testbed.m_cap >> image;
-    image = imread("tagimage.jpg");
+    testbed.m_cap >> image;
+    //image = imread("tagimage.jpg");
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
     for(int i = 0;i<n;i++){
       if(testbed.detections[i].id == origin_id){//plane extracted
+        bots[testbed.detections[i].id].plan.robot_id = i;
         testbed.extractPlane(i);
         break;
       }
     }
+    if(bots[origin_id].plan.robot_id<0)
+      continue;//can't find the origin tag to extract plane
     for(int i = 0;i<n;i++){
       bots[testbed.detections[i].id].plan.robot_id = i;
       if(testbed.detections[i].id != origin_id){//robot or goal
@@ -84,10 +94,10 @@ int main(int argc, char* argv[]) {
           cout<<"too many robots found"<<endl;
           break;
         }
+        robotCount++;
         testbed.findRobotPose(i,bots[testbed.detections[i].id].pose);//i is the index in detections for which to find pose
       }
     }
-    if(bots[0].plan.robot_id<0) continue;//can't find the origin to extract plane
     for(int i = 0;i<bots.size();i++){
       //for bot 0, the origin and robot index would be the same
       bots[i].plan.origin_id = bots[0].plan.robot_id;//set origin index of every path planner
@@ -100,9 +110,15 @@ int main(int argc, char* argv[]) {
     if(first_iter){
       first_iter = 0;
       bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
+      for(int i = 1;i<bots.size();i++){
+        bots[i].plan.rcells = bots[0].plan.rcells;
+        bots[i].plan.ccells = bots[0].plan.ccells;
+      }
     }
-    for(int i = 1;i<bots.size();i++)
+    for(int i = 1;i<bots.size();i++){
+      cout<<"planning for id "<<i<<endl;
       bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);
+    }
 
     //if(!path_planner.total_points){//no path algorithm ever run before, total_points become -1 if no path exists from pos to goal
       //path_planner.robot_id = tag_id_index_map[robot_id];
@@ -118,14 +134,17 @@ int main(int argc, char* argv[]) {
       //}
     //}
 
-    pair<int,int> wheel_velocities;
-    for(int i = 1;i<bots.size();i++){//0 is for origin
-      wheel_velocities = bots[i].control.computeStimuli(bots[i].pose,bots[i].plan.path_points);
-      if(testbed.m_arduino){
-        s_transmit.print((uchar)(bots[i].id));
-        s_transmit.print((uchar)(128+wheel_velocities.first));
-        s_transmit.print((uchar)(128+wheel_velocities.second));
-        cout<<"velocities sent "<<wheel_velocities.first<<" "<<wheel_velocities.second<<endl;
+    if(testbed.m_arduino){
+      pair<int,int> wheel_velocities;
+      for(int i = 1;i<bots.size();i++){//0 is for origin
+        wheel_velocities = bots[i].control.computeStimuli(bots[i].pose,bots[i].plan.path_points);//for nonexistent robots, path_points vector would be empty thus preventing the controller to have any effect
+          s_transmit[i-1].print((unsigned char)(bots[i].id));
+          cout<<"sending velocity for bot "<<bots[i].id<<endl;
+          s_transmit[i-1].print((unsigned char)(128+wheel_velocities.first));
+          s_transmit[i-1].print((unsigned char)(128+wheel_velocities.second));
+          cout<<"sent velocities "<<wheel_velocities.first<<" "<<wheel_velocities.second<<endl;
+          //strangely when I send multiple values to different robots in this loop, the robot always move straight irrespective of the value sent
+          //break;
       }
     }
     if(testbed.m_draw){
@@ -148,7 +167,17 @@ int main(int argc, char* argv[]) {
       cout << "  " << 10./(t-last_t) << " fps" << endl;
       last_t = t;
     }
-    if (cv::waitKey(10) == 27) break;//until escape is pressed
+    if (cv::waitKey(10) == 27){
+      if(testbed.m_arduino){
+        for(int i = 1;i<bots.size();i++){//0 is for origin
+            s_transmit[i-1].print((unsigned char)(bots[i].id));
+            s_transmit[i-1].print((unsigned char)(0));
+            s_transmit[i-1].print((unsigned char)(0));
+            //break;
+        }
+      }
+      break;//until escape is pressed
+    }
   }
   return 0;
 }
