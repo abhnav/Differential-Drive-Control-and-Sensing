@@ -335,7 +335,10 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
         world_gridc[ngr][ngc].r_id = robot_id;
         skc.push(pair<int,int>(ngr,ngc));
         step_distance++;
-        continue;
+        if(ngr == target.first && ngc == target.second)//the point was covered during the spiral only
+          return step_distance;//return the distance found till now
+        else
+          continue;
       }
     }
     bool empty_neighbor_found = false;
@@ -351,16 +354,19 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
       world_gridc[ngr][ngc].r_id = robot_id;
       skc.push(pair<int,int>(ngr,ngc));
       step_distance++;
-      break;
+      if(ngr == target.first && ngc == target.second)//no need to go any further
+        return step_distance;
+      else
+        break;//already added a new point in spiral
     }
     if(empty_neighbor_found) continue;
-    break;//if control reaches here, it means that the spiral phase simulation is complete
+    break;//if control reaches here, it means that the spiral phase simulation is complete and the target was not visited 
   }
   //check whether the target is approachable from current robot
   for(int i = 0;i<4;i++){
     ngr = target.first+aj[0][1][i].first;//aj[0][1] gives the global preference iteration of the neighbors
     ngc = target.second+aj[0][1][i].second;
-    if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc]
+    if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc], no need to check steps as I'm checking the r_id which implies covered
       vector<vector<nd> > tp;//a temporary map
       PathPlannerGrid temp_planner(tp);
       temp_planner.gridInversion(plannerc, robot_id);
@@ -370,7 +376,7 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
       temp_planner.goal_grid_y = ngc;
       temp_planner.findshortest(testbed);
       step_distance += temp_planner.total_points;
-      return step_distance;
+      return step_distance;//there might be a better way via some other adj cell, but difference would be atmost 1 unit cell
     }
   }
   return 10000000;//the robot can't return to given target
@@ -384,7 +390,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     if(!sk.empty()){
       pair<int,int> t = sk.top();
       if(t.first != start_grid_x || t.second != start_grid_y || distance(ps.x,ps.y,path_points[total_points-1].x,path_points[total_points-1].y)>reach_distance){//ensure the robot is continuing from the last point, and that no further planning occurs until the robot reaches the required point
-        //cout<<"the robot has not yet reached the old target"<<endl;
+        cout<<"the robot has not yet reached the old target"<<t.first<<" "<<t.second<<endl;
         return;
       }
     }
@@ -496,26 +502,26 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
   int it,mind = 10000000;
   bool valid_found = false;
   for(it = 0;it<bt_destinations.size();it++){
-    if(!bt_destinations[it].valid || bt_destinations[it].manhattan_distance<0)//refer line 482
+    if(!bt_destinations[it].valid || bt_destinations[it].manhattan_distance<0)//refer line 491
       continue;
-    if(it<mind){
+    if(it<mind)
       mind = it;//closest valid backtracking point
+
+    int i;
+    for(i = 0;i<bots.size();i++){
+      if(bots[i].robot_id == origin_id || bots[i].robot_id == robot_id)//the tag is actually the origin or current robot itself
+        continue;
+      //all planners must share the same map
+      int tp = bots[i].backtrackSimulateBid(bt_destinations[it].next_p,testbed);// returns 10000000 if no path
+      if(tp<bt_destinations[it].manhattan_distance)//a closer bot is available
+        break;
+    }
+    if(i == bots.size()){
+      valid_found = true;
       break;
     }
-    //int i;
-    //for(i = 0;i<bots.size();i++){
-      //if(bots[i].robot_id == origin_id)//the tag is actually the origin
-        //continue;
-      ////all planners must share the same map
-      //int tp = bots[i].backtrackSimulateBid(bt_destinations[it].next_p,testbed);// returns 10000000 if no path
-      //if(tp<bt_destinations[it].manhattan_distance)//a closer bot is available
-        //break;
-    //}
-    //if(i == bots.size()){
-      //valid_found = true;
-      //break;
-    //}
   }
+
   if(!valid_found && mind == 10000000)//no bt point left
     return;
   if(!valid_found && mind != 10000000)//no point exists for which the given robot is the closest

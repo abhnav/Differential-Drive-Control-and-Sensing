@@ -98,11 +98,6 @@ int main(int argc, char* argv[]) {
         testbed.findRobotPose(i,bots[testbed.detections[i].id].pose);//i is the index in detections for which to find pose
       }
     }
-    for(int i = 0;i<bots.size();i++){
-      //for bot 0, the origin and robot index would be the same
-      bots[i].plan.origin_id = bots[0].plan.robot_id;//set origin index of every path planner
-      planners[i] = bots[i].plan;
-    }
 
     //all robots must be detected(in frame) when overlay grid is called else some regions on which a robot is 
     //present(but not detected) would be considered an obstacle
@@ -115,6 +110,15 @@ int main(int argc, char* argv[]) {
         bots[i].plan.ccells = bots[0].plan.ccells;
       }
     }
+
+    //the planners[i] should be redefined every iteration as the stack and bt points change 
+    //this is inefficient, should look for alternates
+    for(int i = 0;i<bots.size();i++){
+      //for bot 0, the origin and robot index would be the same
+      bots[i].plan.origin_id = bots[0].plan.robot_id;//set origin index of every path planner
+      planners[i] = bots[i].plan;
+    }
+
     for(int i = 1;i<bots.size();i++){
       cout<<"planning for id "<<i<<endl;
       bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);
