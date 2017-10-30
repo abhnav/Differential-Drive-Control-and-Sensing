@@ -14,6 +14,8 @@ class PathPlannerGrid{
     int goal_id;
     int robot_id;
     int origin_id;
+    //the real tag id
+    int robot_tag_id;
     //note the different use of r,c and x,y in the context of matrix and image respectively
     int cell_size_x;//cell size in pixels
     int cell_size_y;
@@ -49,6 +51,7 @@ class PathPlannerGrid{
       goal_id = pt.goal_id;
       robot_id = pt.robot_id;
       origin_id = pt.origin_id;
+      robot_tag_id = pt.robot_tag_id;
       cell_size_x = pt.cell_size_x;
       cell_size_y = pt.cell_size_y;
       threshold_value = pt.threshold_value;

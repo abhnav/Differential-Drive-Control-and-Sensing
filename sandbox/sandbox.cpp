@@ -61,10 +61,10 @@ int main(int argc, char* argv[]) {
   //setMouseCallback(windowName, path_planner.CallBackFunc, &path_planner);
   int robotCount;
   int max_robots = 3;
-  int origin_id = 0;//always 0
+  int origin_tag_id = 0;//always 0
   //tag id should also not go beyond max_robots
   vector<vector<nd> > tp;//a map that would be shared among all
-  vector<bot_config> bots(max_robots,bot_config(60,60,100,tp,40.0,2.0,14.5,70,70,128,false));
+  vector<bot_config> bots(max_robots,bot_config(60,60,120,tp,40.0,2.3,14.5,75,75,128,false));
   vector<PathPlannerGrid> planners(max_robots,PathPlannerGrid(tp));
 
   while (true){
@@ -78,18 +78,21 @@ int main(int argc, char* argv[]) {
 
     testbed.processImage(image, image_gray);//tags extracted and stored in class variable
     int n = testbed.detections.size();
+    for(int i = 0;i<bots.size();i++){
+      bots[i].plan.robot_tag_id = i;
+    }
     for(int i = 0;i<n;i++){
-      if(testbed.detections[i].id == origin_id){//plane extracted
+      bots[testbed.detections[i].id].plan.robot_id = i;
+      if(testbed.detections[i].id == origin_tag_id){//plane extracted
         bots[testbed.detections[i].id].plan.robot_id = i;
         testbed.extractPlane(i);
         break;
       }
     }
-    if(bots[origin_id].plan.robot_id<0)
+    if(bots[origin_tag_id].plan.robot_id<0)
       continue;//can't find the origin tag to extract plane
     for(int i = 0;i<n;i++){
-      bots[testbed.detections[i].id].plan.robot_id = i;
-      if(testbed.detections[i].id != origin_id){//robot or goal
+      if(testbed.detections[i].id != origin_tag_id){//robot or goal
         if(robotCount>=10){
           cout<<"too many robots found"<<endl;
           break;
@@ -115,7 +118,7 @@ int main(int argc, char* argv[]) {
     //this is inefficient, should look for alternates
     for(int i = 0;i<bots.size();i++){
       //for bot 0, the origin and robot index would be the same
-      bots[i].plan.origin_id = bots[0].plan.robot_id;//set origin index of every path planner
+      bots[i].plan.origin_id = bots[0].plan.robot_id;//set origin index of every path planner which is the index of tag 0 in detections vector given by RHS
       planners[i] = bots[i].plan;
     }
 
@@ -155,7 +158,7 @@ int main(int argc, char* argv[]) {
       for(int i = 0;i<n;i++){
         testbed.detections[i].draw(image);
       }
-      bots[origin_id].plan.drawGrid(image);
+      bots[origin_tag_id].plan.drawGrid(image);
       for(int i = 1;i<bots.size();i++){
         bots[i].plan.drawPath(image);
       }

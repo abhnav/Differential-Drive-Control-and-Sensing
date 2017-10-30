@@ -83,8 +83,8 @@ bool PathPlannerGrid::isEmpty(int r,int c){//criteria based on which to decide w
 //everyone except origin tag is my friend
 bool PathPlannerGrid::isFellowAgent(int x,int y,vector<AprilTags::TagDetection> &detections){
   for(int i = 0;i<detections.size();i++){
-    if(i == origin_id)
-      continue;
+    //if(i == origin_id)
+      //continue;
     if(pixelIsInsideTag(x,y,detections,i))
       return true;
   }
@@ -206,7 +206,7 @@ pair<int,int> PathPlannerGrid::setParentUsingOrientation(robot_pose &ps){
 void PathPlannerGrid::addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed){
   //cout<<"adding cell "<<r<<" "<<c<<endl;
   int ax,ay;double bx,by;
-  world_grid[r][c].r_id = robot_id;//adding this because I can't figure out where in the later code in bsa incremental, I'm not updating the rid of the latest point added
+  world_grid[r][c].r_id = robot_tag_id;//adding this because I can't figure out where in the later code in bsa incremental, I'm not updating the rid of the latest point added
   ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
   ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
   testbed.pixelToWorld(ax,ay,bx,by);
@@ -283,7 +283,7 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
     ic_no++;
     vector<vector<nd> > tp;//a temporary map
     PathPlannerGrid temp_planner(tp);
-    temp_planner.gridInversion(*this, robot_id);
+    temp_planner.gridInversion(*this, robot_tag_id);
     temp_planner.start_grid_x = incumbent_cells[0].first;
     temp_planner.start_grid_y = incumbent_cells[0].second;
     temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
@@ -303,7 +303,7 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   world_grid[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_grid[t.first][t.second].parent.first, world_grid[t.first][t.second].parent.second);
   world_grid[ngr][ngc].steps = 1;
   world_grid[ngr][ngc].parent = t;
-  world_grid[ngr][ngc].r_id = robot_id;
+  world_grid[ngr][ngc].r_id = robot_tag_id;
   addGridCellToPath(ngr,ngc,testbed);
   sk.push(pair<int,int>(ngr,ngc));
 }
@@ -332,7 +332,7 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
         world_gridc[ngr][ngc].wall_reference = -1;
         world_gridc[ngr][ngc].steps = 1;
         world_gridc[ngr][ngc].parent = t;
-        world_gridc[ngr][ngc].r_id = robot_id;
+        world_gridc[ngr][ngc].r_id = robot_tag_id;
         skc.push(pair<int,int>(ngr,ngc));
         step_distance++;
         if(ngr == target.first && ngc == target.second)//the point was covered during the spiral only
@@ -351,7 +351,7 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
       world_gridc[ngr][ngc].wall_reference = getWallReference(t.first,t.second,world_gridc[t.first][t.second].parent.first, world_gridc[t.first][t.second].parent.second);
       world_gridc[ngr][ngc].steps = 1;
       world_gridc[ngr][ngc].parent = t;
-      world_gridc[ngr][ngc].r_id = robot_id;
+      world_gridc[ngr][ngc].r_id = robot_tag_id;
       skc.push(pair<int,int>(ngr,ngc));
       step_distance++;
       if(ngr == target.first && ngc == target.second)//no need to go any further
@@ -366,10 +366,10 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
   for(int i = 0;i<4;i++){
     ngr = target.first+aj[0][1][i].first;//aj[0][1] gives the global preference iteration of the neighbors
     ngc = target.second+aj[0][1][i].second;
-    if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].r_id == robot_id){//robot can get to given target via [ngr][ngc], no need to check steps as I'm checking the r_id which implies covered
+    if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].r_id == robot_tag_id){//robot can get to given target via [ngr][ngc], no need to check steps as I'm checking the r_id which implies covered
       vector<vector<nd> > tp;//a temporary map
       PathPlannerGrid temp_planner(tp);
-      temp_planner.gridInversion(plannerc, robot_id);
+      temp_planner.gridInversion(plannerc, robot_tag_id);
       temp_planner.start_grid_x = skc.top().first;
       temp_planner.start_grid_y = skc.top().second;
       temp_planner.goal_grid_x = ngr;
@@ -405,7 +405,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     sk.push(pair<int,int>(start_grid_x,start_grid_y));
     world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
     world_grid[start_grid_x][start_grid_y].steps = 1;//visited
-    world_grid[start_grid_x][start_grid_y].r_id = robot_id;
+    world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
     addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
     return;//added the first spiral point
   }
@@ -446,7 +446,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
       else{
         int i;
         for(i = 0;i<bt_destinations.size();i++)
-          if(bt_destinations[i].next_p.first == ngr && bt_destinations[i].next_p.second == ngc)//the point was already added before
+          if(bt_destinations[i].next_p.first == ngr && bt_destinations[i].next_p.second == ngc && bt_destinations[i].parent.second == t.second && bt_destinations[i].parent.first == t.first)//the point was already added before
             break;
         if(i == bt_destinations.size()){//this is new point
           bt_destinations.push_back(bt(t.first,t.second,ngr,ngc,sk));
@@ -480,7 +480,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     cout<<"going for bt point "<<bt_destinations[i].next_p.first<<" "<<bt_destinations[i].next_p.second<<endl;
     vector<vector<nd> > tp;//a temporary map
     PathPlannerGrid temp_planner(tp);
-    temp_planner.gridInversion(*this, robot_id);
+    temp_planner.gridInversion(*this, robot_tag_id);
     temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
     temp_planner.start_grid_y = start_grid_y;
     temp_planner.goal_grid_x = bt_destinations[i].parent.first;
@@ -522,8 +522,10 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     }
   }
 
-  if(!valid_found && mind == 10000000)//no bt point left
+  if(!valid_found && mind == 10000000){//no bt point left
+    cout<<"no bt point left for robot "<<robot_tag_id<<endl;
     return;
+  }
   if(!valid_found && mind != 10000000)//no point exists for which the given robot is the closest
     it = mind;
   //else it stores the index of the next bt point
@@ -542,7 +544,7 @@ void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_p
   total_points = 0;
   world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
   world_grid[start_grid_x][start_grid_y].steps = 1;//visited
-  world_grid[start_grid_x][start_grid_y].r_id = robot_id;
+  world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
   addGridCellToPath(start_grid_x,start_grid_y,testbed);
   int ngr,ngc,wall;//neighbor row and column
 
@@ -588,7 +590,7 @@ void PathPlannerGrid::findCoverageLocalNeighborPreference(AprilInterfaceAndVideo
   total_points = 0;
   world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
   world_grid[start_grid_x][start_grid_y].steps = 1;//visited
-  world_grid[start_grid_x][start_grid_y].r_id = robot_id;
+  world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
   addGridCellToPath(start_grid_x,start_grid_y,testbed);
   int ngr,ngc;//neighbor row and column
 
@@ -625,7 +627,7 @@ void PathPlannerGrid::findCoverageGlobalNeighborPreference(AprilInterfaceAndVide
   sk.push(pair<int,int>(start_grid_x,start_grid_y));
   //parent remains -1, -1
   world_grid[start_grid_x][start_grid_y].steps = 1;
-  world_grid[start_grid_x][start_grid_y].r_id = robot_id;
+  world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
   addGridCellToPath(start_grid_x,start_grid_y,testbed);
   total_points = 0;
   while(!sk.empty()){
