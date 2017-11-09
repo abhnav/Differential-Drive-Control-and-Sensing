@@ -1,4 +1,4 @@
-# Install script for directory: /home/robot/Documents/DifferentialDrive/sandbox
+# Install script for directory: /home/super/Documents/DifferentialDrive/sandbox
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

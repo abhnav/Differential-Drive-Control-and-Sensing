@@ -1,4 +1,4 @@
-#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
 
 #IncludeRegexScan: ^.*$
 
@@ -10,7 +10,7 @@
 string
 -
 
-/home/robot/Documents/DifferentialDrive/src/Serial.cpp
+/home/super/Documents/DifferentialDrive/src/Serial.cpp
 fcntl.h
 -
 termios.h
@@ -24,5 +24,5 @@ sstream
 unistd.h
 -
 Serial.h
-/home/robot/Documents/DifferentialDrive/src/Serial.h
+/home/super/Documents/DifferentialDrive/src/Serial.h
 

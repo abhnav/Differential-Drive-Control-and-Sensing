@@ -16,6 +16,7 @@ struct pt{
   pt(){}
   pt(double a,double b):x(a),y(b){}
 };
+
 struct nd{
   int tot;
   int blacks, whites;
@@ -34,6 +35,7 @@ struct nd{
     parent.first = parent.second = wall_reference = r_id = -1;
   }
 };
+
 struct bt{
   //the bt point might not remain valid, so you must check coverage for next_p in world grid before using it
   std::pair<int,int> parent;

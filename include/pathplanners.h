@@ -1,11 +1,16 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 #include "aprilvideointerface.h"
+#include "controllers.h"
 #include <vector>
 #include <utility>
 #include <stack>
 #include <cstring>
 //the cell empty criteria is an adjustable parameter as well
+#define INACTIVE 0
+#define SPIRAL 1
+#define RETURN 2
+struct bot_config;
 class PathPlannerGrid{
   public:
     //the ids below are the indexes in the detections vector, not the actual tag ids
@@ -35,16 +40,19 @@ class PathPlannerGrid{
     //below two are used exclusively for incrementalbsa function, don't use for any other purpose
     int first_call;
     vector<bt> bt_destinations;
+    int phase;
 
     PathPlannerGrid(int csx,int csy,int th,std::vector<std::vector<nd> > &wg):cell_size_x(csx),cell_size_y(csy),threshold_value(th),total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1),world_grid(wg){
       initializeLocalPreferenceMatrix();
       path_color = cv::Scalar(rng.uniform(0,255),rng.uniform(0,255),rng.uniform(0,255));
       first_call = 1;
+      phase = INACTIVE;
     }
     PathPlannerGrid(std::vector<std::vector<nd> > &wg):total_points(0),start_grid_x(-1),start_grid_y(-1),goal_grid_x(-1),goal_grid_y(-1),robot_id(-1),goal_id(-1),origin_id(-1),world_grid(wg){
       initializeLocalPreferenceMatrix();
       path_color = cv::Scalar(rng.uniform(0,255),rng.uniform(0,255),rng.uniform(0,255));
       first_call = 1;
+      phase = INACTIVE;
     }
     PathPlannerGrid& operator=(const PathPlannerGrid& pt){
       path_color = pt.path_color;
@@ -66,6 +74,7 @@ class PathPlannerGrid{
       sk = pt.sk;
       first_call = pt.first_call;
       bt_destinations = pt.bt_destinations;
+      phase = pt.phase;
       return *this;
     }
     double distance(double x1,double y1,double x2,double y2);
@@ -94,7 +103,7 @@ class PathPlannerGrid{
     void addBacktrackPointToStackAndPath(std::stack<std::pair<int,int> > &sk,std::vector<std::pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,std::pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed);
     void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     int backtrackSimulateBid(std::pair<int,int> target,AprilInterfaceAndVideoCapture &testbed);
-    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps,double reach_distance,vector<PathPlannerGrid> &bots);
+    void BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps,double reach_distance,vector<bot_config> &bots);
     void findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     void findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed);
     void drawPath(cv::Mat &image);
@@ -116,4 +125,21 @@ class PathPlannerUser{
     }
 };
 
+struct bot_config{
+  PathPlannerGrid plan;
+  PurePursuitController control;//constructor called, thus must have a default constructor with no arguments
+  int id;
+  robot_pose pose;
+  //using intializer list allows intializing variables with non trivial contructor
+  //assignment would not help if there is no default contructor with no arguments
+  bot_config(int cx,int cy, int thresh,std::vector<std::vector<nd> > &tp, double a,double b,double c, int d,int e,int f,bool g):plan(PathPlannerGrid(cx,cy,thresh,tp)),control(PurePursuitController(a,b,c,d,e,f,g)){
+    id = -1;//don't forget to set the id
+    //below line would first call plan PathPlannerGrid constructor with no argument and then replace lhs variables with rhs ones
+    //plan = PathPlannerGrid(cx,cy,thresh,tp);
+  }
+  void init(){
+    plan.start_grid_x = plan.start_grid_y = -1;
+    plan.robot_id = -1;
+  }
+};
 #endif
